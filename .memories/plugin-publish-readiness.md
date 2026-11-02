@@ -63,8 +63,8 @@
 
 ## 跟进（2026-09-12）：已落地
 
-- ID 已改为 `io.github.liushunqiu.pi-idea-git`，`author` 为 `liushunqiu`
-  （`manifest.json`）；代码与 `src/` 里无其他 `local.` 引用。
+- ID 已改为 `io.github.corner19.git-master`，`author` 为 `Corner19`
+  （`manifest.json`）；代码与 `src/` 里无其他旧 ID 引用。
 - 市场字段已按官方社区插件（`io.github.muzimu217.session-import`，
   取自其 GitHub 上的 `manifest.json`）的形状补齐：`homepage`、`repository`、
   `i18n.en/zh-CN`（名称/描述/`safetyNotes`）、`categories`

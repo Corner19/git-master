@@ -1,11 +1,17 @@
  # Changelog
 
+## 0.4.0 — 2026-11-02
+
+- 品牌全面升级为 **Git Master（全能 Git）**，插件 ID 更新为 `io.github.corner19.git-master`。
+- 多仓库能力突破：新增多仓库一键拉取（`git/pull-all`）与故障隔离，支持子模块与平级仓库批量拉取。
+- 新增独立的命令行运维工具 `tools/git-multi.mjs`，支持在终端一键 `status`、`pull`、`commit`、`push`、`sync` 批量同步管理所有仓库。
+- 工具栏拉取按钮智能化：当工作区存在多个仓库或子模块时，自动触发多仓批量拉取与结果分类汇总。
+
 ## 0.3.1
 
 - 将提交与 Git 合并为一个 Git 工作面板入口，默认上下分屏同时显示提交区与日志区。
 - 支持拖动分隔条，以及单独查看提交、日志和控制台；独立窗口和兼容页面入口也使用统一布局。
 - 合并版使用独立版本号，避免与旧版双入口的 0.3.0 安装包混淆。
-
  ## 0.3.0 — 2026-09-14
 
  - Git 操作补齐（对标 IDEA 日志／分支面板，见
@@ -26,9 +32,8 @@
 
 ## 0.2.0 — 2026-09-12
 
-首个对外发布版本。发布 ID 为 `io.github.liushunqiu.pi-idea-git`
-（开发期曾用 `local.pi-idea-git`；插件数据目录按 ID 隔离，
-改名后提交信息历史与视图选项从空开始）。
+首个对外发布版本。发布 ID 为 `io.github.corner19.git-master`
+（插件数据目录按 ID 隔离，提交信息历史与视图选项从空开始）。
 
 - 提交 / Git 双工具窗口：Staged / Unstaged / Unversioned Files /
   Merge Conflicts 分组目录树，hunk 级暂存、取消暂存与丢弃，
@@ -41,8 +46,8 @@
   回复落框前强制整形（空行、行宽、项目符号）。
 - 在 PI-Desktop 0.14.6 上验证；`engines` 声明 `>= 0.8.0`。
 
-First public release under `io.github.liushunqiu.pi-idea-git`
-(renamed from the dev id `local.pi-idea-git`; per-plugin prefs start fresh).
+First public release under `io.github.corner19.git-master`
+(per-plugin prefs start fresh).
 Commit/Git tool windows, multi-repo aggregation, classified push/pull
 remedies with lease-only force push, and host-model commit-message drafting.
 Verified on PI-Desktop 0.14.6.

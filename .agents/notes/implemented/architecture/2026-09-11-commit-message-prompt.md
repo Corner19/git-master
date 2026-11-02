@@ -3,7 +3,7 @@
 Status: implemented
 
 日期：2026-09-11
-范围：`local.pi-idea-git` 的 `main.js`（`buildSystemPrompt` / `commitStyle` /
+范围：`git-master` 的 `main.js`（`buildSystemPrompt` / `commitStyle` /
 `buildCommitContext`）与 `src/commit-view.js`（生成菜单）
 
 ## 问题

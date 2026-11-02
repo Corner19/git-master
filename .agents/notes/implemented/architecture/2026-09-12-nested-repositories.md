@@ -3,7 +3,7 @@
 Status: implemented
 
 日期：2026-09-12
-范围：`local.pi-idea-git` 的 `main.js`（`refreshWorkspace` / `selectedRoot` /
+范围：`git-master` 的 `main.js`（`refreshWorkspace` / `selectedRoot` /
 `scanNestedRepositories` / `submodulePaths` / `discoverRepositories` /
 `readRepo` / `readDiff` / `workspaceRelativeRoot` / `git/{repos,select-repo}`）
 与 `src/common.js`（`mountRepoSelector`、i18n）、`src/commit-view.js`、

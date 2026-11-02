@@ -3,7 +3,7 @@
 Status: implemented
 
 日期：2026-09-11
-范围：`local.pi-idea-git`（PI-Desktop 插件）
+范围：`git-master`（PI-Desktop 插件）
 
 ## 问题
 
@@ -115,7 +115,7 @@ IDEA 在 diff 里给每个 hunk 一个"纳入本次提交"复选框。这里把�
 
 - **换用官方 `pi.gitlens` 插件**：该插件确实存在（用户曾安装 12 分钟后卸载），
   覆盖面也接近。放弃原因：用户明确要 IDEA 的手感，且已经卸载并搭了
-  `pi-idea-git` 脚手架；分块提交的"复选框 = 真实索引"映射是本次的核心差异点，
+  `git-master` 脚手架；分块提交的"复选框 = 真实索引"映射是本次的核心差异点，
   现成插件不提供。
 - **改 PI-Desktop 内核加 Git API**：需要打补丁到 `app.asar`，升级即失效，
   且宿主明确不提供任意进程 API。放弃。

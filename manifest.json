@@ -90,7 +90,7 @@
   },
   "activationEvents": [
     "onStartup",
-    "onCommand:pi-idea-git.open",
-    "onCommand:pi-idea-git.refresh"
+    "onCommand:git-master.open",
+    "onCommand:git-master.refresh"
   ]
 }

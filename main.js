@@ -3327,8 +3327,8 @@ async function onPanelInvoke(channel, payload = {}) {
 // Lifecycle
 // ---------------------------------------------------------------------------
 
-const OPEN_COMMAND = "pi-idea-git.open";
-const REFRESH_COMMAND = "pi-idea-git.refresh";
+const OPEN_COMMAND = "git-master.open";
+const REFRESH_COMMAND = "git-master.refresh";
 
 /**
  * The workspace listener is rebuilt on every load and released on unload.

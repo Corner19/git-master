@@ -484,8 +484,7 @@ node tools/build.mjs && node tools/smoke.mjs commit zh-CN
 
 1. 扩展页右上角 **`···` → 「加载本地插件」** → 选这个目录。
 2. 改 `src/`，跑 `node tools/build.mjs`，视图会热重载。
-3. 组装干净的发布目录再打 Pack：`node tools/build.mjs && node tools/make-publish-dir.mjs`，然后对 `dist-publish/io.github.liushunqiu.pi-idea-git/` 跑 `PluginCheck` / `PluginPack`（产物在该目录的 `dist/*.piplug`，8 个文件约 0.9MB）。**不要直接对仓库根打 Pack**——它会把 `.smoke/`、`.memories/`、`tools/`、`src/` 等开发文件一起打进去（`PluginPack` 不读 `.gitignore`，且没有排除文件机制，实测 2.1MB / 46 文件）。
-   从老 ID `local.pi-idea-git` 升级上来的用户，提交信息历史与视图选项不会迁移（插件数据目录按 ID 隔离）。
+3. 组装干净的发布目录再打 Pack：`node tools/build.mjs && node tools/make-publish-dir.mjs`，然后对 `dist-publish/io.github.corner19.git-master/` 跑 `PluginCheck` / `PluginPack`（产物在该目录的 `dist/*.piplug`，8 个文件约 0.9MB）。**不要直接对仓库根打 Pack**——它会把 `.smoke/`、`.memories/`、`tools/`、`src/` 等开发文件一起打进去（`PluginPack` 不读 `.gitignore`，且没有排除文件机制，实测 2.1MB / 46 文件）。
 
 质量底线（改完代码过一遍）：`node --check` 每个 `src/*.js`、`PluginCheck` 无 error、`node tools/harness.mjs` 全绿。
 

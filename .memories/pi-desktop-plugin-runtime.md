@@ -432,9 +432,9 @@ AGENTS.local.md
 
 ## 本项目已发布到 GitHub
 
-仓库：<https://github.com/liushunqiu/pi-idea-git>（**public**，2026-09-11 建立并公开）。
+仓库：<https://github.com/Corner19/git-master>（**public**，2026-11-02 建立并公开）。
 默认分支 `main`。若需改回私有：
-`gh repo edit liushunqiu/pi-idea-git --visibility private --accept-visibility-change-consequences`。
+`gh repo edit Corner19/git-master --visibility private --accept-visibility-change-consequences`。
 
 `.gitattributes` 把 `views/*.html` 与 `renderer/*.html` 标成
 `linguist-generated` + `linguist-detectable=false`：它们是 `tools/build.mjs` 的产物，

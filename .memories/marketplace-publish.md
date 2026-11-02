@@ -1,6 +1,6 @@
 # 向 vastsa/pi-desktop-plugins 上架的实战坑位
 
-2026-09-14 首发 `io.github.liushunqiu.pi-idea-git@0.3.0`，PR vastsa/pi-desktop-plugins#47。
+2026-11-02 首发 `io.github.corner19.git-master@0.4.0`。
 官方 CONTRIBUTING 只说了 pack → audit → rebuild → test → PR，下面是文档里没有、踩了才知道的。
 
 ## 1. panel-chrome 测试是硬门槛（最容易挂）
@@ -40,7 +40,7 @@ README.md/LICENSE/CHANGELOG.md` 这 8 个（即 `dist-publish/<id>/` 的内容�
 ## 5. 每个新插件要自带测试文件
 
 仓规矩：加插件/改 manifest 必须配测试断言**精确权限列表 + 版本**。
-仿 `tests/session-import.test.mjs` 写 `tests/pi-idea-git.test.mjs`：
+仿 `tests/session-import.test.mjs` 写 `tests/git-master.test.mjs`：
 manifest 身份/权限/i18n safetyNotes/ui 双语标题/views+commands、
 `require(main.js)` 导出 `onLoad/onUnload/onPanelInvoke`、
 `spawn(binary, args, …)` 且无 `shell: true`、视图产物自包含。

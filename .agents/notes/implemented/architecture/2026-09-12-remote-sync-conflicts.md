@@ -3,7 +3,7 @@
 Status: implemented
 
 日期：2026-09-12
-范围：`local.pi-idea-git` 的 `main.js`（`gitError` / `pushHint` / `pullHint` /
+范围：`git-master` 的 `main.js`（`gitError` / `pushHint` / `pullHint` /
 `pullStrategy` / `resolvePushTarget` / `readOperation` / `git/sequencer` /
 `git/{fetch,push,pull}`）与 `src/common.js`、`src/commit-view.js`、`src/git-view.js`
 
