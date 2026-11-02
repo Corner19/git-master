@@ -1,6 +1,6 @@
 # PI-Desktop 插件运行时：踩过的坑
 
-来源：2026-09-11 在 `local.pi-idea-git` 上从零实现一个 Git 工具窗口时实测。
+来源：实现 Git 工具窗口时实测。
 每条都是"症状有迷惑性 / 凭直觉会走偏 / 返工成本高"的类型。
 
 ## 1. 视图页面用 `file://` 加载，ES module 会被拦
@@ -286,7 +286,7 @@ const { text, modelKey, usage } = await pi.agent.complete({
 很多模型。真因是**权限从未授上**——日志里写得明明白白：
 
 ```
-{"pluginId":"local.pi-idea-git","api":"models.list","ok":false,"errorCode":"PERMISSION_DENIED"}
+{"pluginId":"git-master","api":"models.list","ok":false,"errorCode":"PERMISSION_DENIED"}
 ```
 
 而我的代码是：

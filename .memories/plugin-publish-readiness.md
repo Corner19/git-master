@@ -6,7 +6,7 @@
 
 ## 1. PluginPack 把 gitignored 文件也打进包，且不认 `.piplugignore`
 
-- 实测：`PluginPack` 打出 `local.pi-idea-git-0.2.0.piplug`（2.1MB，46 个文件）。
+- 实测：`PluginPack` 打出旧版 `git-master.piplug`。
   解包可见 `.smoke/`（约 700KB，`board.html` + 三个渲染快照）、`.memories/`、
   `.agents/notes/`、`tools/`、`src/`（与 `views/*.html` 重复的内容）、
   `AGENTS.local.md`、`.workflow/`、`.gitignore` 全在包里。
@@ -21,10 +21,10 @@
  （`main.js`、`manifest.json`、`views/`、`renderer/`、`README.md` + 必要的 LICENSE）。
 - 验证后已删除实验用的 `.piplugignore` 与 `dist/`，工作区是干净的。
 
-## 2. `local.pi-idea-git` 这个 ID 发不到市场上
+## 2. `local.*` 这个 ID 发不到市场上
 
 - 市场现有 ID 形如 `demo.hello`、`pi.bianqian`、`io.github.xxx.xxx`，
-  `local.` 是开发命名空间，发布前必须改名（如 `io.github.<你>.pi-idea-git`），
+  `local.` 是开发命名空间，发布前必须改名（如 `io.github.corner19.git-master`），
   `author: "local"` 也要换成真实作者。
 - 改名的代价：`prefs.json`（提交信息历史 30 条 + 视图选项）存在
   `pi.plugin.getDataPath()` 下，而该目录是**按插件 ID 隔离**的——改名后
