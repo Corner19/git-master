@@ -1,0 +1,355 @@
+/*
+ * Layout on top of the palette: scrollbars, resizers, the Log tab's pane grid
+ * and the affordances that only exist once the panel gets narrow.
+ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--fg) 22%, transparent);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--fg) 38%, transparent);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ------------------------------------------------------------------- panes */
+
+/* A vertical splitter that is only visible while hovered or dragged, so the
+   surface keeps IDEA's flat look at rest. */
+.splitter-y {
+  flex: 0 0 auto;
+  height: 5px;
+  margin: -2px 0;
+  z-index: 4;
+  background: transparent;
+  cursor: row-resize;
+}
+
+.splitter-y:hover,
+.splitter-y.active {
+  background: var(--button-primary-bg);
+}
+
+.log-panes {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.log-panes > .branches-pane {
+  flex: 0 0 auto;
+  width: var(--branches-width, 168px);
+}
+
+.log-panes > .commits-pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.log-detail {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: var(--detail-height, 46%);
+}
+
+.log-detail > .changed-files {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.log-detail > .details-pane {
+  flex: 0 0 auto;
+  max-height: 45%;
+  overflow: auto;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Keep the commit list and graph lane strictly aligned:
+   The SVG graph node uses ROW_HEIGHT = 34. The row must never expand,
+   otherwise SVG branch lines disconnect across rows and nodes drift from text. */
+.log-row {
+  height: 34px;
+  max-height: 34px;
+  box-sizing: border-box;
+}
+
+.log-body {
+  min-height: 34px;
+  max-height: 34px;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.log-meta-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.log-author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+@media (max-width: 560px) {
+  .log-meta-line {
+    gap: 6px;
+  }
+
+  .log-panes > .branches-pane {
+    width: 110px;
+  }
+}
+
+/* On narrow dock panes, auto-hide the branches sidebar so commits remain readable. */
+@media (max-width: 440px) {
+  .log-panes > .branches-pane,
+  .log-panes > .divider-v {
+    display: none;
+  }
+
+  .log-row .log-hash {
+    display: none;
+  }
+}
+
+@media (max-height: 520px) {
+  .log-detail {
+    height: var(--detail-height, 36%);
+  }
+}
+
+@media (max-width: 480px) {
+  .diff-overlay-path {
+    display: none;
+  }
+
+  .diff-overlay-title {
+    flex: 0 1 auto;
+    min-width: 60px;
+  }
+}
+
+.commit-view {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.commit-changes {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: var(--changes-width, 45%);
+  min-width: 140px;
+  min-height: 0;
+}
+
+.commit-diff {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Narrow work panels read better stacked than side by side.
+   Stack below 600px so side-by-side diff doesn't get crushed into unreadability. */
+@media (max-width: 600px) {
+  .commit-view {
+    flex-direction: column;
+  }
+
+  .commit-changes {
+    width: auto;
+    max-height: 40%;
+  }
+
+  .commit-view > .divider-v {
+    display: none;
+  }
+}
+
+/* The changes pane's own search box: wide enough to type a path fragment, and
+   it gives the room back to the tree as soon as the pane narrows. */
+.pane-header .search-field {
+  flex: 0 1 150px;
+  min-width: 0;
+}
+
+.pane-header .search-field input.changes-filter {
+  width: 100%;
+  min-width: 0;
+}
+
+.diff-file-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  /* Keep the gear, drop the field: filtering is a convenience, the view options
+     are not. */
+  .pane-header .search-field {
+    display: none;
+  }
+}
+
+.branch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  padding: 2px 8px;
+  border: 1px solid color-mix(in oklab, var(--border-soft) 85%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--chrome-bg) 92%, var(--fg) 8%);
+  cursor: pointer;
+  user-select: none;
+  transition: all 120ms ease;
+}
+
+.branch-chip:hover {
+  border-color: var(--button-border);
+  background: var(--button-hover);
+}
+
+.branch-chip .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.branch-chip .tracking {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ahead {
+  color: var(--status-added);
+}
+
+.behind {
+  color: var(--status-modified);
+}
+
+:root[data-theme="dark"] .behind {
+  color: var(--status-modified);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.mono {
+  font-family: var(--mono-font);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/*
+ * The commit-actions row carries the checkboxes, the summary, the generate
+ * control, the branch, and the commit buttons. On a narrow work panel that is
+ * more than fits, and the generate button is the one whose meaning survives
+ * losing its label — the sparkles and the tooltip still say it.
+ */
+@media (max-width: 560px) {
+  .gen-label {
+    display: none;
+  }
+
+  .branch-chip {
+    max-width: 120px;
+  }
+
+  .toolbar {
+    gap: 1px;
+    padding: 2px 3px;
+  }
+
+  .toolbar .user-filter,
+  .toolbar .date-filter {
+    max-width: 110px !important;
+    padding: 2px 5px;
+  }
+
+  .toolbar .toolbar-folder-name,
+  .toolbar .toolbar-folder-spacer {
+    display: none;
+  }
+
+  /* Commit actions row wrapping & layout */
+  .commit-actions {
+    gap: 6px 8px;
+  }
+
+  #commit-branch {
+    display: none;
+  }
+
+  .commit-actions .check {
+    font-size: 11.5px;
+  }
+
+  .commit-actions .split-button {
+    margin-left: auto;
+  }
+}
+
+@media (max-height: 550px) {
+  .commit-area {
+    padding: 4px 6px 6px;
+    gap: 4px;
+  }
+
+  .commit-message-row textarea {
+    min-height: 44px;
+  }
+
+  .commit-changes {
+    max-height: 35%;
+  }
+}

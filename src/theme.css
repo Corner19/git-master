@@ -1,0 +1,1583 @@
+/*
+ * IntelliJ IDEA palette and component styles.
+ *
+ * Colour provenance matters here, so the values are grouped by how solid the
+ * evidence is:
+ *
+ *  - One deliberate deviation: JetBrains documents the light-theme deleted row
+ *    as a neutral grey (#D7D6D6). Next to the green insertion it reads as
+ *    "faded" rather than "removed", so a soft red is used instead. The other
+ *    diff colours are the published ones.
+ *  - Diff line backgrounds, the word-level fragment colour, the pane divider,
+ *    the editor gutter change bars and the file-status colours are the values
+ *    JetBrains prints in its own documentation/colour tables. They are used
+ *    verbatim, light and dark.
+ *  - Everything else is UI chrome (tool window background, borders, selection,
+ *    toolbar) where JetBrains publishes no numbers. Those follow the look of
+ *    IntelliJ Light and Darcula respectively rather than pretending to be
+ *    pixel-exact.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* ---- Modern Light (JetBrains New UI style) ---- */
+  --bg: #ffffff;
+  --chrome-bg: #f8f9fa;
+  --panel-bg: #ffffff;
+  --panel-alt: #f1f3f5;
+  --border: #d0d7de;
+  --border-soft: #e8ecf0;
+  --fg: #1f2328;
+  --fg-secondary: #59636e;
+  --fg-muted: #8c959f;
+  --selection: #e0ecff;
+  --selection-fg: #0969da;
+  --selection-inactive: #f0f3f6;
+  --hover: rgba(0, 0, 0, 0.045);
+  --focus-ring: #0969da;
+
+  --button-bg: #ffffff;
+  --button-border: #d0d7de;
+  --button-hover: #f3f5f8;
+  --button-primary-bg: #1f6feb;
+  --button-primary-fg: #ffffff;
+  --button-primary-hover: #1958ba;
+
+  --input-bg: #ffffff;
+  --input-border: #d0d7de;
+
+  --diff-inserted: #dafbe1;
+  --diff-modified: #ddf4ff;
+  --diff-deleted: #ffebe9;
+  --diff-fragment: #b6e3ff;
+  --diff-divider: #e8ecf0;
+
+  --gutter-modified: #98caf9;
+  --gutter-added: #8ddb9d;
+  --gutter-deleted: #f69d9d;
+  --gutter-whitespace: #edd8b4;
+
+  --status-added: #1a7f37;
+  --status-modified: #0969da;
+  --status-deleted: #cf222e;
+  --status-merged: #8250df;
+  --status-conflict: #d1242f;
+  --status-ignored: #8c959f;
+  --status-renamed: #059669;
+  --status-unversioned: #b45309;
+
+  --graph-head: #d97706;
+  --graph-local: #16a34a;
+  --graph-remote: #9333ea;
+  --graph-tag: #64748b;
+
+  --toolbar-h: 34px;
+  --row-h: 26px;
+  --radius: 6px;
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --mono-font: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --ui-size: 12.5px;
+  --mono-size: 12px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ---- Modern Dark (JetBrains New UI style) ---- */
+  --bg: #1e1f22;
+  --chrome-bg: #1e1f22;
+  --panel-bg: #232428;
+  --panel-alt: #1a1b1d;
+  --border: #393b40;
+  --border-soft: #2e3035;
+  --fg: #dfe1e5;
+  --fg-secondary: #9da0a8;
+  --fg-muted: #6f737a;
+  --selection: #2e436e;
+  --selection-fg: #ffffff;
+  --selection-inactive: #2d2f34;
+  --hover: rgba(255, 255, 255, 0.06);
+  --focus-ring: #3574f0;
+
+  --button-bg: #2b2d30;
+  --button-border: #3e4249;
+  --button-hover: #35383d;
+  --button-primary-bg: #3574f0;
+  --button-primary-fg: #ffffff;
+  --button-primary-hover: #3068d8;
+
+  --input-bg: #1e1f22;
+  --input-border: #3e4249;
+
+  --diff-inserted: #1b382b;
+  --diff-modified: #1c2d42;
+  --diff-deleted: #3d1f24;
+  --diff-fragment: #284b6f;
+  --diff-fragment-deleted: #5c282e;
+  --diff-fragment-inserted: #254d38;
+  --diff-divider: #2e3035;
+
+  --gutter-modified: #36506c;
+  --gutter-added: #366044;
+  --gutter-deleted: #7d353b;
+  --gutter-whitespace: #4a4535;
+
+  --status-added: #57ab5a;
+  --status-modified: #58a6ff;
+  --status-deleted: #f85149;
+  --status-merged: #bc8cff;
+  --status-conflict: #ff7b72;
+  --status-ignored: #6e7681;
+  --status-renamed: #3fb950;
+  --status-unversioned: #d29922;
+
+  --graph-head: #fbbf24;
+  --graph-local: #4ade80;
+  --graph-remote: #c084fc;
+  --graph-tag: #94a3b8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font: var(--ui-size) / 1.45 var(--ui-font);
+  background: var(--chrome-bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The host owns a transparent drag band. It is 46px in a detached panel and
+   0 in a docked view, and the host publishes the value either way. */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--pi-plugin-titlebar-height, 0px);
+  background: var(--chrome-bg);
+}
+
+/* ---------------------------------------------------------------- toolbars */
+
+.toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--toolbar-h);
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+/* --------------------------------------------------------------- controls */
+
+button,
+.tbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 24px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1.3;
+  white-space: nowrap;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+
+button:hover:not(:disabled),
+.tbtn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+button:focus-visible,
+.tbtn:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -1px;
+}
+
+button:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+  opacity: 0.6;
+}
+
+button.bordered {
+  border-color: var(--button-border);
+  background: var(--button-bg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+button.bordered:hover:not(:disabled) {
+  background: var(--button-hover);
+  border-color: color-mix(in oklab, var(--button-border) 80%, var(--fg));
+}
+
+button.primary {
+  border-color: var(--button-primary-bg);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-fg);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--button-primary-hover);
+  border-color: var(--button-primary-hover);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+}
+
+button.primary:disabled {
+  border-color: var(--button-border);
+  background: var(--button-bg);
+  color: var(--fg-muted);
+  box-shadow: none;
+}
+
+.ui-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+button.icon {
+  min-width: 24px;
+  padding: 2px 5px;
+}
+
+button.icon svg {
+  display: block;
+}
+
+button.icon.active {
+  background: color-mix(in oklab, var(--button-primary-bg) 18%, transparent);
+  color: var(--button-primary-bg);
+  border-color: color-mix(in oklab, var(--button-primary-bg) 35%, transparent);
+}
+
+.split-button {
+  display: inline-flex;
+}
+
+.split-button > button:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-button > button:last-child {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left-width: 0;
+  min-width: 18px;
+  padding: 2px 3px;
+}
+
+label.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--button-primary-bg);
+  cursor: pointer;
+}
+
+input[type="text"],
+input[type="search"],
+textarea,
+select {
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--fg);
+  font: inherit;
+  padding: 3px 6px;
+}
+
+textarea {
+  resize: none;
+  font-family: var(--ui-font);
+}
+
+.search-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+}
+
+.search-field input {
+  border: 0;
+  padding: 2px 0;
+  background: transparent;
+  min-width: 90px;
+}
+
+.search-field input:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------- tabs */
+
+.tabs {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 1px;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--chrome-bg);
+  overflow-x: auto;
+}
+
+.tabs button {
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  padding: 5px 10px;
+  color: var(--fg-secondary);
+}
+
+.tabs button[aria-selected="true"] {
+  border-bottom-color: var(--button-primary-bg);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+.surface {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--panel-bg);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.scroll {
+  overflow: auto;
+  min-height: 0;
+}
+
+.pane {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--chrome-bg);
+  color: var(--fg-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pane-header .toolbar-spacer {
+  flex: 1 1 auto;
+}
+
+.divider-v {
+  flex: 0 0 auto;
+  width: 1px;
+  background: var(--border-soft);
+}
+
+.divider-v.draggable {
+  width: 5px;
+  margin: 0 -2px;
+  z-index: 3;
+  background: transparent;
+  cursor: col-resize;
+}
+
+.divider-v.draggable:hover,
+.divider-v.draggable.active {
+  background: var(--button-primary-bg);
+}
+
+.divider-h {
+  flex: 0 0 auto;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+.empty-state {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+.empty-state .headline {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty-state code {
+  font-family: var(--mono-font);
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------------- lists */
+
+.list {
+  padding: 2px 0;
+}
+
+.group-header {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  align-items: center;
+  gap: 6px;
+  height: calc(var(--row-h) + 2px);
+  padding: 0 8px;
+  margin: 3px 4px;
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--chrome-bg) 95%, var(--fg) 5%);
+  border: 1px solid color-mix(in oklab, var(--border-soft) 80%, transparent);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 11.5px;
+  transition: background 120ms ease;
+}
+
+.group-header:hover {
+  background: color-mix(in oklab, var(--chrome-bg) 88%, var(--fg) 12%);
+}
+
+.group-header .count {
+  color: var(--fg-secondary);
+  font-weight: 500;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+.disclosure {
+  display: inline-flex;
+  width: 12px;
+  flex-shrink: 0;
+  justify-content: center;
+  color: var(--fg-secondary);
+  transform-origin: center;
+  transition: transform 120ms ease;
+}
+
+.disclosure[data-open="true"] {
+  transform: rotate(90deg);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--row-h);
+  padding: 0 8px 0 4px;
+  margin: 1px 4px;
+  border-radius: 4px;
+  cursor: default;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.tree-row:hover {
+  background: var(--hover);
+}
+
+/* Selected text uses --selection-fg so light (#d4e2ff bg) stays dark and readable. */
+.tree-row[aria-selected="true"] {
+  background: var(--selection);
+  color: var(--selection-fg);
+}
+
+.tree-row[aria-selected="true"] .meta,
+.tree-row[aria-selected="true"] .path,
+.tree-row[aria-selected="true"] .badge {
+  color: color-mix(in oklab, var(--selection-fg) 82%, transparent);
+}
+
+.tree-row .indent {
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.tree-row .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-row .path {
+  color: var(--fg-secondary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-row .meta {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+.tree-row .grow {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status-cell {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  margin-right: 4px;
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.badge {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg-secondary);
+  font-size: 10px;
+  line-height: 15px;
+}
+
+.badge.head {
+  border-color: var(--graph-head);
+  color: var(--graph-head);
+}
+
+.badge.local {
+  border-color: var(--graph-local);
+  color: var(--graph-local);
+}
+
+.badge.remote {
+  border-color: var(--graph-remote);
+  color: var(--graph-remote);
+}
+
+.badge.tag {
+  border-color: var(--graph-tag);
+  color: var(--fg-secondary);
+}
+
+.tiny-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 3px;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.tiny-button:hover {
+  background: color-mix(in oklab, var(--fg) 14%, transparent);
+}
+/* ------------------------------------------------------------- tree rows --- */
+
+/* A folder row keeps the file rows' rhythm but reads as structure: its name is
+   darker than a file's, and its icon says which of the two it is without the
+   user parsing the indentation. */
+.tree-row.dir-row {
+  font-weight: 600;
+}
+
+.tree-row.dir-row .name {
+  color: var(--fg);
+}
+
+.tree-row.dir-row .count {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--fg) 8%, transparent);
+  color: var(--fg-secondary);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+/* IDEA-style repository row: like a folder row, plus the per-repo color
+   square and a branch pill. Files nested below it render one level deeper. */
+.tree-row.repo-row {
+  font-weight: 600;
+  cursor: pointer;
+}
+.tree-row.repo-row .name {
+  color: var(--fg);
+}
+.tree-row.repo-row .muted {
+  margin-left: 6px;
+  font-size: 11px;
+}
+.tree-row.repo-row .badge {
+  margin-left: 6px;
+}
+.tree-row.repo-row .repo-color {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.tree-row.dir-row .meta {
+  margin-left: 6px;
+  padding-left: 0;
+}
+
+.tree-row .row-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--fg-secondary);
+}
+
+/* The folder's own disclosure sits between its checkbox and its icon, so the
+   arrow lines up with the one on a group header rather than with the checkbox
+   column. */
+.tree-row.dir-row .disclosure {
+  margin: 0 -2px;
+}
+
+/* Narrow work panels are the normal case here, and the folder count is the
+   first thing that can go without losing meaning. */
+@media (max-width: 420px) {
+  .tree-row.dir-row .meta {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------------- diff */
+
+.diff {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+  background: var(--panel-bg);
+}
+
+.diff-file-header {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel-alt);
+  color: var(--fg-secondary);
+  font-size: 11px;
+}
+
+.diff-hunk-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 6px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--chrome-bg);
+  color: var(--fg-secondary);
+  font-family: var(--mono-font);
+  font-size: 11px;
+}
+
+.diff-hunk-header.folded {
+  background: var(--panel-alt);
+}
+
+.diff-hunk-note {
+  color: var(--fg-muted);
+}
+
+.diff-hunk-actions {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+  opacity: 0;
+}
+
+.diff-hunk-header:hover .diff-hunk-actions,
+.diff-hunk-header:focus-within .diff-hunk-actions {
+  opacity: 1;
+}
+
+.diff-hunk-actions button {
+  min-height: 17px;
+  padding: 0 6px;
+  border-color: var(--button-border);
+  background: var(--button-bg);
+  font-family: var(--ui-font);
+  font-size: 11px;
+}
+
+.diff-line {
+  display: flex;
+  min-height: 17px;
+  font-family: var(--mono-font);
+  font-size: var(--mono-size);
+  line-height: 17px;
+  white-space: pre;
+}
+
+.diff-line .gutter-mark {
+  flex: 0 0 auto;
+  width: 4px;
+}
+
+.diff-line .sign {
+  flex: 0 0 auto;
+  width: 12px;
+  text-align: center;
+  color: color-mix(in oklab, var(--fg) 55%, transparent);
+  user-select: none;
+}
+
+.diff-line .text {
+  flex: 1 1 auto;
+  padding-right: 8px;
+  min-width: 0;
+}
+
+.diff-line.inserted {
+  background: var(--diff-inserted);
+}
+
+.diff-line.deleted {
+  background: var(--diff-deleted);
+}
+
+.diff-line.modified {
+  background: var(--diff-modified);
+}
+
+.diff-line.context .text {
+  color: var(--fg);
+}
+
+/* Word-level highlight inside a changed line. The hue follows the row it sits
+   on when a theme provides one: a blue patch over a red row reads as mud, which
+   is exactly what the dark palette suffered from. */
+.diff-line .fragment,
+.diff-line.deleted .fragment,
+.diff-line.inserted .fragment,
+.diff-line .fragment.strong {
+  background: transparent;
+}
+
+.whitespace-mark {
+  color: color-mix(in oklab, var(--fg) 45%, transparent);
+}
+
+.diff-collapsed {
+  padding: 0 8px 0 16px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--panel-alt);
+  color: var(--fg-muted);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.diff-collapsed:hover {
+  color: var(--fg-secondary);
+}
+
+/* Side-by-side rendering of the very same hunks. */
+/*
+ * Side by side keeps each panel at half the viewport but never wraps: a
+ * wrapped line breaks the row-by-row alignment that makes the two panels worth
+ * comparing. When the content is wider than the panel the whole grid grows and
+ * the diff scrolls horizontally as one, so both sides stay on the same offset.
+ */
+.diff-sbs {
+  display: grid;
+  grid-template-columns: minmax(50%, max-content) 2px minmax(50%, max-content);
+  align-items: start;
+  width: max-content;
+  min-width: 100%;
+}
+
+.diff-sbs .side {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.diff-sbs .spacer {
+  background: var(--diff-divider);
+}
+
+.diff-sbs .diff-line .text {
+  white-space: pre;
+}
+
+.diff-sbs .filler {
+  background: var(--panel-alt);
+}
+
+/* --------------------------------------------------------------- messages */
+
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--panel-alt);
+}
+
+.banner.error {
+  border-left-color: var(--status-conflict);
+}
+
+.banner.info {
+  border-left-color: var(--button-primary-bg);
+}
+
+.banner .banner-text {
+  min-width: 0;
+}
+
+.banner .banner-detail {
+  margin-top: 4px;
+  color: var(--fg-secondary);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------- commit message area */
+
+.commit-area {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 8px 8px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--chrome-bg);
+}
+
+.commit-message-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.commit-message-row textarea {
+  flex: 1 1 auto;
+  min-height: 62px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.commit-history {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+}
+
+.commit-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.commit-actions .spacer {
+  flex: 1 1 auto;
+}
+
+.commit-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-secondary);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-summary.warn {
+  color: var(--status-unversioned);
+}
+
+.commit-badge-staged {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--button-primary-bg) 14%, transparent);
+  color: var(--button-primary-bg);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* Recent commit banner / card */
+.recent-commit-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px 8px 6px;
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--panel-alt) 70%, var(--bg));
+  border: 1px solid var(--border-soft);
+  font-size: 11.5px;
+}
+
+.recent-commit-card .title-badge {
+  flex: 0 0 auto;
+  font-weight: 600;
+  color: var(--fg-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.recent-commit-card .commit-hash {
+  flex: 0 0 auto;
+  font-family: var(--mono-font);
+  font-size: 11px;
+  color: var(--button-primary-bg);
+  font-weight: 600;
+}
+
+.recent-commit-card .commit-msg {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.recent-commit-card .commit-actions-mini {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 4px;
+}
+
+.recent-commit-card .commit-actions-mini button {
+  min-height: 20px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------------ popups */
+
+.popup {
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  max-width: min(520px, 92vw);
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32);
+  padding: 4px;
+}
+
+.popup .popup-title {
+  padding: 4px 8px;
+  color: var(--fg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.popup button {
+  display: flex;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  text-align: left;
+}
+
+.popup button .shortcut {
+  margin-left: auto;
+  padding-left: 16px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+.popup button[data-checked="true"]::before {
+  content: "✓";
+  width: 10px;
+}
+
+.popup button:not([data-checked])::before {
+  content: "";
+  width: 10px;
+}
+
+.popup .popup-separator {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border-soft);
+}
+
+.popup input[type="text"] {
+  width: 100%;
+  margin: 3px 0;
+}
+
+/* ------------------------------------------------------------------- graph */
+
+.log-row {
+  display: grid;
+  grid-template-columns: var(--graph-width, 84px) minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 34px;
+  border-bottom: 1px solid color-mix(in oklab, var(--border-soft) 55%, transparent);
+  cursor: default;
+  user-select: none;
+}
+
+.log-row:hover {
+  background: var(--hover);
+}
+
+/* Same --selection-fg contract as .tree-row above: white on light blue is unreadable. */
+.log-row[aria-selected="true"] {
+  background: var(--selection);
+  color: var(--selection-fg);
+}
+
+.log-row[aria-selected="true"] .log-author,
+.log-row[aria-selected="true"] .log-hash,
+.log-row[aria-selected="true"] .log-date {
+  color: color-mix(in oklab, var(--selection-fg) 78%, transparent);
+}
+
+.log-row.mine .log-subject {
+  font-weight: 700;
+}
+
+.log-row.current-branch {
+  background: color-mix(in oklab, var(--button-primary-bg) 6%, transparent);
+}
+
+.log-row.current-branch[aria-selected="true"] {
+  background: var(--selection);
+}
+
+.log-row.is-head {
+  position: relative;
+  background: color-mix(in oklab, var(--graph-head) 8%, transparent);
+}
+
+.log-row.is-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--graph-head);
+}
+
+.log-row.is-head[aria-selected="true"] {
+  background: var(--selection);
+}
+
+.log-graph {
+  overflow: hidden;
+}
+
+.log-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 3px 8px 3px 0;
+  min-width: 0;
+}
+
+.log-subject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-secondary);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+.log-author,
+.log-date,
+.log-hash {
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.log-hash {
+  font-family: var(--mono-font);
+}
+
+.commit-details {
+  padding: 8px 10px;
+  color: var(--fg-secondary);
+  font-size: 11px;
+}
+
+.commit-details dl {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 10px;
+  margin: 0;
+}
+
+.commit-details dt {
+  color: var(--fg-muted);
+}
+
+.commit-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--fg);
+}
+
+.commit-details .message-body {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  color: var(--fg);
+  font-family: var(--mono-font);
+  font-size: 11px;
+}
+
+/* ----------------------------------------------------------------- console */
+
+.console {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+  padding: 6px 8px;
+  background: var(--panel-bg);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.console-entry {
+  margin-bottom: 10px;
+}
+
+.console-cmd {
+  color: var(--status-modified);
+  font-weight: 700;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.console-out {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg);
+}
+
+.console-out.failure {
+  color: var(--status-conflict);
+}
+
+.console-time {
+  color: var(--fg-muted);
+}
+
+/* ------------------------------------------------------------------- toast */
+
+.toast-layer {
+  position: fixed;
+  right: 12px;
+  /* Top-right, not bottom-right: the bottom-right is the commit area (message
+     box + buttons) in the Commit view, so a success toast landed exactly on
+     the controls the user reaches for next. Top-right only covers read-only
+     list content while it is visible. The progress pill sits top-centre, so
+     the two never overlap — see the busy-feedback agent note. */
+  top: 12px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.toast {
+  max-width: 340px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 5px;
+  background: var(--panel-bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  animation: toast-in 140ms ease-out;
+}
+
+/* Git's own output is multi-line, and collapsing it into one paragraph is how
+   "CONFLICT (content): Merge conflict in f.txt" ends up reading as part of a
+   sentence. */
+.toast {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* An error toast that has more of Git's output behind it: the toast itself is
+   the target, and this is the label that says so. */
+.toast.clickable {
+  pointer-events: auto;
+}
+
+.toast-link {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--button-primary-bg);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.toast.clickable .toast-link:hover {
+  color: var(--fg);
+}
+
+/* The full output behind a "Show details" link. `.banner-detail` is scoped to
+   the conflict banner, so a dialog outside one had no styling at all — and a
+   4000-character block with no bound would run past the bottom of the window. */
+.dialog-detail {
+  margin-top: 8px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--fg-secondary);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.toast.error {
+  border-left-color: var(--status-conflict);
+}
+
+.toast.info {
+  border-left-color: var(--button-primary-bg);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ------------------------------------------------------------ diff overlay */
+
+/*
+ * A commit's diff has no editor tab to live in, so it takes over the tool
+ * window. It has to look like a deliberate surface rather than an unstyled
+ * page: a header that names the file, a hairline under it, and the diff
+ * inset on the panel background.
+ */
+.diff-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+}
+
+.diff-overlay-header {
+  gap: 6px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--chrome-bg);
+}
+
+.diff-overlay-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-overlay-path {
+  color: var(--fg-muted);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-overlay > .diff {
+  padding-bottom: 12px;
+}
+
+/* The file header is the overlay's own headline; keep it flush, not sticky
+   over the scrolling content it duplicates. */
+.diff-overlay .diff-file-header {
+  position: static;
+  height: 26px;
+  background: var(--panel-alt);
+  font-size: 11px;
+}
+
+.diff-overlay .diff-hunk-header {
+  font-size: 11px;
+}
+
+/* Two number columns in unified view (old | new), one per side otherwise. */
+.diff-line .num {
+  flex: 0 0 auto;
+  width: 30px;
+  padding-right: 6px;
+  color: var(--fg-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.diff-sbs .diff-line .num {
+  width: 34px;
+}
+/* ------------------------------------------------- busy & progress ---- */
+/* Long Git operations (push / fetch / pull / commit / checkout) must never */
+/* look ignored while the process runs: every trigger shows a spinner where */
+/* it was clicked, plus a floating pill so menu actions have feedback too. */
+.spinner {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  opacity: 0.85;
+  animation: pig-spin 0.7s linear infinite;
+}
+.spinner.large {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+@keyframes pig-spin {
+  to { transform: rotate(360deg); }
+}
+/* An icon button that is running something: keep its size so the toolbar */
+/* does not jump, spin the mark in place. */
+button.icon.busy {
+  color: var(--fg-secondary);
+  cursor: wait;
+}
+button.icon.busy svg {
+  display: none;
+}
+button.icon.busy .spinner {
+  display: block;
+  margin: 2px;
+}
+/* Text buttons keep their width while busy so the dialog footer stays put. */
+button.busy {
+  cursor: wait;
+}
+button.busy .spinner {
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+/* One floating pill for actions with no button to spin in (branch-menu */
+/* fetch / pull / push / checkout, stash pop): top-centre, above popups, */
+/* below modal dialogs. */
+.task-pill-layer {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+.task-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(420px, 90vw);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-bg);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  color: var(--fg-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: task-pill-in 160ms ease-out;
+}
+.task-pill.done {
+  color: var(--status-added);
+}
+.task-pill.failed {
+  color: var(--status-conflict);
+}
+@keyframes task-pill-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+/* Push dialog: thin progress track under the subtitle plus a per-row state. */
+.push-progress {
+  height: 3px;
+  margin-top: 8px;
+  border-radius: 2px;
+  background: var(--border-soft);
+  overflow: hidden;
+}
+.push-progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: var(--button-primary-bg);
+  transition: width 180ms ease-out;
+}
+.push-row.is-active {
+  border-color: var(--button-primary-bg);
+  background: var(--diff-modified);
+}
+.push-row .row-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.push-row .row-status.pushing {
+  color: var(--fg-secondary);
+}
+.push-row .row-status.ok {
+  color: var(--status-added);
+}
+.push-row .row-status.error {
+  color: var(--status-conflict);
+}
+/* A slow reload reads as loading, not frozen: dim the list a touch. */
+.is-refreshing .scroll.list,
+.is-refreshing .commits-pane {
+  opacity: 0.65;
+  transition: opacity 120ms ease-out;
+}

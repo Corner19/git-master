@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.corner19.git-master",
+  "name": "Git Master",
+  "version": "0.4.0",
+  "description": "An IntelliJ-IDEA-style Git & multi-repo tool window for PI-Desktop: multi-repo batch pull/commit/push, staged/unstaged change lists, hunk-level stage & revert, branch switcher, graph log and stashes. 全能 Git 工具窗口：多仓库一键拉取/提交/推送、暂存/未暂存分组、代码块暂存与还原、分支切换、图形化日志与储藏。",
+  "author": "Corner19",
+  "homepage": "https://github.com/Corner19/git-master",
+  "repository": "https://github.com/Corner19/git-master",
+  "i18n": {
+    "en": {
+      "name": "Git Master",
+      "description": "An IntelliJ-IDEA-style Git & multi-repo tool window for PI-Desktop: multi-repo batch pull/commit/push, staged/unstaged change lists, hunk-level stage & revert, commit, branch switcher, graph log and stashes.",
+      "safetyNotes": "Reads workspace files through the host fs APIs (Open File / Reveal only); discarding an untracked file deletes it (with a confirmation dialog) — every other write goes through Git commands. Commit-message generation calls the host model with your own model setup and quota (host rate limit 8/min); the plugin holds no API keys, makes no network requests, no telemetry. HTTPS credentials come from your own Git credential helper; keys that live only in ssh-agent do not work — use an HTTPS remote or a keychain-backed key."
+    },
+    "zh-CN": {
+      "name": "全能 Git",
+      "description": "PI-Desktop 的全能 Git 工具窗口：支持多仓库一键拉取/提交/推送、暂存/未暂存分组、代码块暂存与还原、提交、分支切换、图形化日志与储藏。",
+      "safetyNotes": "只读工作区文件（Open File / Reveal 走宿主 fs 接口）；丢弃未跟踪文件时会直接删除该文件（操作前有确认框），其余写操作一律走 Git 命令。生成提交信息调用宿主模型，用的是你自己的模型配置与额度（宿主限流 8 次/分），插件不持有任何 API Key，不发起网络请求，无遥测。HTTPS 凭据走你自己的 Git 凭据助手；只活在 ssh-agent 里的密钥用不了，请用 HTTPS 远端或钥匙串密钥。"
+    }
+  },
+  "categories": [
+    "developer-tools",
+    "productivity"
+  ],
+  "changelog": "Release 0.3.1: Unify Commit and Git into one Git work-panel entry; show Commit and Log together with a draggable splitter, with optional Commit, Log and Console modes. 提交与 Git 合并为一个 Git 工作面板入口，支持提交与日志上下分屏、拖动分隔条以及单独查看提交、日志和控制台。",
+  "safetyNotes": "只读工作区文件（Open File / Reveal 走宿主 fs 接口）；丢弃未跟踪文件时会直接删除该文件（操作前有确认框），其余写操作一律走 Git 命令。生成提交信息调用宿主模型，用的是你自己的模型配置与额度（宿主限流 8 次/分），插件不持有任何 API Key，不发起网络请求，无遥测。HTTPS 凭据走你自己的 Git 凭据助手；只活在 ssh-agent 里的密钥用不了，请用 HTTPS 远端或钥匙串密钥。",
+  "main": "main.js",
+  "ui": {
+    "panel": "renderer/index.html",
+    "title": {
+      "en": "Git Master",
+      "zh-CN": "全能 Git"
+    }
+  },
+  "contributes": {
+    "views": [
+      {
+        "id": "git",
+        "title": {
+          "en": "Git",
+          "zh-CN": "Git"
+        },
+        "icon": "branch",
+        "entry": "views/git.html",
+        "order": 33
+      }
+    ],
+    "commands": [
+      {
+        "id": "git-master.open",
+        "title": "Git Master: Open as a separate window",
+        "keywords": [
+          "git",
+          "idea",
+          "commit",
+          "diff",
+          "stage"
+        ]
+      },
+      {
+        "id": "git-master.refresh",
+        "title": "Git Master: Refresh repository",
+        "keywords": [
+          "git",
+          "refresh",
+          "reload"
+        ]
+      }
+    ]
+  },
+  "permissions": [
+    "ui.panel",
+    "ui.view",
+    "clipboard.write",
+    "fs.read",
+    "models.list",
+    "agent.complete"
+  ],
+  "fs": {
+    "read": {
+      "root": "workspace",
+      "scope": [
+        "**"
+      ]
+    }
+  },
+  "engines": {
+    "piDesktop": ">=0.8.0"
+  },
+  "activationEvents": [
+    "onStartup",
+    "onCommand:pi-idea-git.open",
+    "onCommand:pi-idea-git.refresh"
+  ]
+}
