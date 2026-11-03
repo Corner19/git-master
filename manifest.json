@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.corner19.git-master",
   "name": "Git Master",
-  "version": "0.4.0",
+  "version": "0.4.2",
   "description": "An IntelliJ-IDEA-style Git & multi-repo tool window for PI-Desktop: multi-repo batch pull/commit/push, staged/unstaged change lists, hunk-level stage & revert, branch switcher, graph log and stashes. 全能 Git 工具窗口：多仓库一键拉取/提交/推送、暂存/未暂存分组、代码块暂存与还原、分支切换、图形化日志与储藏。",
   "author": "Corner19",
   "homepage": "https://github.com/Corner19/git-master",

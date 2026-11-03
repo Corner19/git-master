@@ -33,20 +33,20 @@ const context = vm.createContext({
   stageSelected() {}, rollbackSelected() {}, canStageSelected: () => false,
   canUnstageSelected: () => false, repositoryLabel: () => "repo",
   invoke(channel) {
-    assert.equal(channel, "git/pull");
+    assert.equal(channel, "git/pull", "fetch-icon button directly runs pull");
     calls++;
     return new Promise((resolve, reject) => { finish = { resolve, reject }; });
   },
-  report(result, action) { reports.push({ result, action }); },
+  report(result, action) { reports.push({ result, action }); return result.ok; },
   async refresh() { refreshes++; },
 });
 vm.runInContext(source.slice(start, end), context);
 const paint = () => vm.runInContext("paintToolbar()", context);
 const pull = () => toolbar.children.find((button) => button.title === "pull");
 paint();
-assert.equal(pull().name, "arrowDown", "pull uses an existing downward arrow icon");
+assert.equal(pull().name, "fetch", "pull uses the fetch icon");
 const titles = toolbar.children.filter((button) => button.title).map((button) => button.title);
-assert.deepEqual(titles.slice(0, 4), ["refresh", "fetch", "pull", "push"]);
+assert.deepEqual(titles.slice(0, 3), ["refresh", "pull", "push"]);
 for (const result of [{ ok: true }, { ok: false, pullHint: "conflict" }]) {
   const button = pull();
   const pending = button.onclick();
@@ -75,7 +75,7 @@ assert.equal(pull().disabled, true, "commit operations disable pull");
 const count = calls;
 await pull().onclick();
 assert.equal(calls, count);
-console.log("PASS: single repo toolbar pull routing");
+console.log("PASS: single repo fetch-icon pull routing");
 
 // Multi-repo toolbar pull regression
 let pullReposCalledWith = null;
@@ -91,12 +91,10 @@ context.PIG.reportPullOutcomes = (outcomes) => {
   reportPullOutcomesCalledWith = outcomes;
 };
 paint();
-const multiPullBtn = pull();
-assert.equal(multiPullBtn.name, "arrowDown");
-const multiPending = multiPullBtn.onclick();
+const multiPending = pull().onclick();
 assert.equal(state.syncing, "pull");
 await multiPending;
 assert.equal(state.syncing, null);
 assert.deepEqual(pullReposCalledWith, context.state.allRepos, "pullRepos receives allRepos targets");
 assert.equal(reportPullOutcomesCalledWith.length, 2, "reportPullOutcomes reports both repo outcomes");
-console.log("PASS: multi-repo toolbar pull routing, busy guard, and outcome reporting");
+console.log("PASS: multi-repo fetch-icon pull routing, busy guard, and outcome reporting");

@@ -452,14 +452,9 @@
         label: t("stashChanges"),
         disabled: !repo || (!repo.staged.length && !repo.unstaged.length && !repo.untracked.length),
         onSelect: async () => {
-          const message = await dialog({
-            title: t("stashChanges"),
-            message: t("stashMessage"),
-            input: { value: "" },
-            confirmLabel: t("stash"),
-          });
-          if (message === null) return;
-          report(await PIG.runWithPill(t("stashing"), () => invoke("git/stash", { action: "push", message })), t("stash"));
+          const result = await PIG.stashChanges();
+          if (result === null) return;
+          report(result, t("stash"));
           ctx.onChanged?.();
         },
       });
@@ -751,20 +746,7 @@
           paintToolbar();
         }
       }));
-      toolbar.append(syncButton("fetch", t("fetch"), "fetch", async () => {
-        if (state.syncing || state.busy) return;
-        state.syncing = "fetch";
-        paintToolbar();
-        try {
-          const result = await invoke("git/fetch");
-          if (report(result, t("fetch"))) await refresh();
-          else paintToolbar();
-        } finally {
-          state.syncing = null;
-          paintToolbar();
-        }
-      }));
-      toolbar.append(syncButton("arrowDown", t("pull"), "pull", async () => {
+      toolbar.append(syncButton("fetch", t("pull"), "pull", async () => {
         if (state.syncing || state.busy) return;
         state.syncing = "pull";
         paintToolbar();
@@ -815,6 +797,13 @@
       toolbar.append(iconButton("plus", tip("stageFile", KEYS.stage), () => stageSelected(true), { disabled: syncDisabled || !canStageSelected() }));
       toolbar.append(iconButton("minus", t("unstageFile"), () => stageSelected(false), { disabled: syncDisabled || !canUnstageSelected() }));
       toolbar.append(iconButton("rollback", tip("rollback", KEYS.rollback), rollbackSelected, { disabled: syncDisabled || !state.selection }));
+      toolbar.append(iconButton("stash", t("stashChanges"), async () => {
+        if (state.syncing || state.busy) return;
+        const result = await PIG.stashChanges();
+        if (result === null) return;
+        report(result, t("stash"));
+        await refresh();
+      }, { disabled: syncDisabled || !state.repo || !["staged", "unstaged", "untracked"].some((key) => state.repo[key]?.length) }));
       toolbar.append(h("div", { class: "toolbar-spacer" }));
       toolbar.append(
         h("span", {

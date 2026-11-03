@@ -430,19 +430,7 @@
           paintToolbar();
         }
       }));
-      toolbar.append(syncButton("fetch", t("fetch"), "fetch", async () => {
-        if (state.syncing) return;
-        state.syncing = "fetch";
-        paintToolbar();
-        try {
-          PIG.reportSync(await PIG.runWithPill(t("fetching"), () => invoke("git/fetch")), t("fetch"));
-          await refresh();
-        } finally {
-          state.syncing = null;
-          paintToolbar();
-        }
-      }));
-      toolbar.append(syncButton("arrowDown", t("pull"), "pull", async () => {
+      toolbar.append(syncButton("fetch", t("pull"), "pull", async () => {
         if (state.syncing) return;
         state.syncing = "pull";
         paintToolbar();
@@ -462,6 +450,13 @@
           paintToolbar();
         }
       }));
+      toolbar.append(iconButton("stash", t("stashChanges"), async () => {
+        if (state.syncing) return;
+        const result = await PIG.stashChanges();
+        if (result === null) return;
+        PIG.reportSync(result, t("stash"));
+        await refresh();
+      }, { disabled: syncDisabled || !state.repo || !["staged", "unstaged", "untracked"].some((key) => state.repo[key]?.length) }));
       toolbar.append(iconButton("clock", t("todayCommits"), () => PIG.openTodayCommits(), { disabled: syncDisabled }));
       toolbar.append(iconButton("arrowUp", t("goToHead"), (event) => {
         const head = state.repo?.branch?.oid;
@@ -817,10 +812,16 @@
     }
 
     function paintStashGroup() {
-      if (!state.stashes.length) return;
       branchesHost.append(h("div", { class: "group-header" }, [
         h("span", { text: t("stashes") }),
         h("span", { class: "count", text: `${state.stashes.length}` }),
+        h("div", { class: "toolbar-spacer" }),
+        iconButton("plus", t("stashChanges"), async () => {
+          const result = await PIG.stashChanges();
+          if (result === null) return;
+          PIG.reportSync(result, t("stash"));
+          await refresh();
+        }, { disabled: !state.repo || !["staged", "unstaged", "untracked"].some((key) => state.repo[key]?.length), size: 13 }),
       ]));
       for (const stash of state.stashes) {
         const row = h("div", {

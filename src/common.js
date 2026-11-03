@@ -668,6 +668,7 @@
     search: [["circle", { cx: 7, cy: 7, r: 4.2 }], ["path", { d: "M10.2 10.2 14 14" }]],
     clock: [["circle", { cx: 8, cy: 8, r: 5.6 }], ["path", { d: "M8 4.6V8l2.6 1.8" }]],
     copy: [["rect", { x: 5.4, y: 5.4, width: 8.2, height: 8.2, rx: 1.2 }], ["path", { d: "M10.6 5.4V3.6a1.2 1.2 0 0 0-1.2-1.2H3.6a1.2 1.2 0 0 0-1.2 1.2v5.8a1.2 1.2 0 0 0 1.2 1.2h1.8" }]],
+    stash: [["rect", { x: 2.5, y: 4, width: 11, height: 9.5, rx: 1 }], ["path", { d: "M2 2.5h12v2H2zM8 6.5v5M5.8 9.3 8 11.5l2.2-2.2" }]],
     trash: [["path", { d: "M3 4.4h10" }], ["path", { d: "M6.4 4.4V3.2h3.2v1.2" }], ["path", { d: "M4.4 4.4l.6 8.4h6l.6-8.4" }]],
     folder: [["path", { d: "M2 4.4A1.4 1.4 0 0 1 3.4 3h2.4l1.4 1.8h5.4A1.4 1.4 0 0 1 14 6.2v5.4A1.4 1.4 0 0 1 12.6 13H3.4A1.4 1.4 0 0 1 2 11.6z" }]],
     file: [["path", { d: "M4 2h5l3 3v9H4z" }], ["path", { d: "M9 2v3h3" }]],
@@ -1810,6 +1811,18 @@
     };
   }
 
+  /** Ask for a stash description; null means the user cancelled. */
+  async function stashChanges() {
+    const message = await dialog({
+      title: t("stashChanges"),
+      message: t("stashMessage"),
+      input: { value: "" },
+      confirmLabel: t("stash"),
+    });
+    if (message === null) return null;
+    return runWithPill(t("stashing"), () => invoke("git/stash", { action: "push", message }));
+  }
+
   Object.assign(PIG, {
     state,
     t,
@@ -1825,6 +1838,7 @@
     popup,
     closePopup,
     dialog,
+    stashChanges,
     openPushDialog,
     openTodayCommits,
     pushRepos,

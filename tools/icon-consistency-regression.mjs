@@ -25,9 +25,11 @@ for (const [page, source] of [["commit", commit], ["history", history]]) {
   for (const match of source.matchAll(/\b(?:icon|iconButton|syncButton)\("([\w]+)"/g)) {
     assert.ok(context.icons[match[1]], `${page}: undefined icon ${match[1]}`);
   }
-  for (const [name, action] of [["refresh", "refresh"], ["fetch", "fetch"], ["arrowDown", "pull"], ["push", "push"]]) {
+  for (const [name, action] of [["refresh", "refresh"], ["push", "push"]]) {
     assert.ok(source.includes(`syncButton("${name}", ${action === "refresh" ? 'tip("refresh", KEYS.refresh)' : `t("${action}")`}, "${action}"`), `${page}: shared ${action} icon`);
   }
+  assert.ok(source.includes('syncButton("fetch", t("pull"), "pull"'), `${page}: pull directly uses fetch icon`);
+  assert.doesNotMatch(source, /syncButton\("arrowDown", t\("pull"\)/, `${page}: no separate pull button`);
   assert.match(source, /class: "disclosure", "data-open"[^\n]+icon\("chevronRight", 12\)/);
   assert.match(source, /class: "row-icon"[^\n]+icon\("folder", 13\)/);
   assert.doesNotMatch(source, /icon\("chevronRight", 11\)/);

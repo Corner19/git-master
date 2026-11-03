@@ -939,6 +939,26 @@ async function main() {
     );
   }
 
+  section("stash changes from the selected repository");
+  {
+    const world = makeWorld("stash-changes");
+    write(world.work, "f.txt", "staged edit\n");
+    git(world.work, ["add", "f.txt"]);
+    write(world.work, "g.txt", "unstaged edit\n");
+    write(world.work, "new.txt", "untracked edit\n");
+    const before = await call(world.work, "git/repo");
+    ok("changes are available to stash", before.staged.length > 0 && before.unstaged.length > 0 && before.untracked.length > 0);
+    eq("stash creation succeeds", (await call(world.work, "git/stash", { action: "push", message: "save work" })).ok, true);
+    const clean = await call(world.work, "git/repo");
+    ok("stash clears tracked and untracked changes", clean.staged.length === 0 && clean.unstaged.length === 0 && clean.untracked.length === 0);
+    const listing = await call(world.work, "git/stashes");
+    includes("stash appears in the list", listing.stashes[0]?.subject, "save work");
+    eq("stash pop succeeds", (await call(world.work, "git/stash", { action: "pop", ref: listing.stashes[0].ref })).ok, true);
+    const restored = await call(world.work, "git/repo");
+    ok("stash restores tracked and untracked changes", restored.unstaged.length > 0 && restored.untracked.length > 0);
+    eq("popped stash leaves the list", (await call(world.work, "git/stashes")).stashes.length, 0);
+  }
+
   // ------------------------------------------------------------------ notes ---
   // The decision records in `.agents/notes/` carry what the code cannot: why this
   // shape, and what it displaced. A note whose header drifted, or whose relative
