@@ -575,7 +575,6 @@
       // `backend` are invisible while the selector points at the parent.
       // In sibling mode the same slots hold the other sibling repos.
       submodules: [],
-      subLoading: false,
       // Last `git/repos` answer: decides whether the toolbar Push opens the
       // multi-repo dialog instead of pushing the current repo directly.
       allRepos: [],
@@ -821,7 +820,6 @@
        const total = counts.staged + counts.unstaged + counts.untracked + counts.conflicted;
        changesHeader.append(h("span", { text: t("changes") }));
        changesHeader.append(h("span", { class: "muted", text: total ? `${total}` : "" }));
-       if (state.subLoading) changesHeader.append(h("span", { class: "muted", text: "…" }));
       changesHeader.append(h("div", { class: "toolbar-spacer" }));
       // IDEA puts this search in the changes pane's own title bar: typing is how
       // you find one file among seventy-four, and the tree below narrows to the
@@ -1143,7 +1141,12 @@
         let hash = 0;
         for (const char of String(ctx.rk ?? "")) hash = (hash * 31 + char.charCodeAt(0)) | 0;
         let index = Math.abs(hash) % REPO_COLORS.length;
-        while (used.has(index)) index = (index + 1) % REPO_COLORS.length;
+        // Distinct colors are best-effort: the palette has only eight slots.
+        // Probing a full `used` set never terminates, so once every color is
+        // taken, reuse the hash color instead of spinning forever.
+        if (used.size < REPO_COLORS.length) {
+          while (used.has(index)) index = (index + 1) % REPO_COLORS.length;
+        }
         used.add(index);
         map.set(ctx.rk, REPO_COLORS[index]);
       }
@@ -1927,36 +1930,53 @@
        const root = ctx?.root ?? state.selection?.root ?? null;
        if (root) payload.repoRoot = root;
        report(await invoke(staging ? "git/stage" : "git/unstage", payload), staging ? t("stageFile") : t("unstageFile"));
-       await refresh();
-     }
+      await refresh();
+    }
 
-     async function loadDiff() {
-       if (!state.selection) {
-         state.diff = null;
-         paintDiff();
-         return;
-       }
-       const sel = state.selection;
-       const mode = sel.g === "staged" ? "index" : "worktree";
-       const result = await invoke("git/diff", {
-         path: sel.p,
-         mode,
-         ignoreWhitespace: state.ignoreWhitespace,
-         ...(sel.root ? { repoRoot: sel.root } : {}),
-       });
-       if (!result.ok) {
-         state.diff = { text: "", error: result.message };
-         paintDiff();
-         diffHost.append(h("div", { class: "banner error" }, [
-           h("div", { class: "banner-text" }, [
-             h("div", { text: result.message ?? t("diff") }),
-           ]),
-         ]));
-         return;
-       }
-       state.diff = result;
-       paintDiff();
-     }
+    /**
+     * What the diff pane is currently showing, so an unchanged diff is not
+     * rebuilt. A refresh reloads the diff on purpose — a file can be edited
+     * without its Git status moving — but on an idle panel that reload used to
+     * throw away every rendered row (and the row under the pointer) every few
+     * seconds for text that had not changed.
+     */
+    let paintedDiffKey = null;
+
+    async function loadDiff() {
+      if (!state.selection) {
+        if (paintedDiffKey === "none") return;
+        paintedDiffKey = "none";
+        state.diff = null;
+        paintDiff();
+        return;
+      }
+      const sel = state.selection;
+      const mode = sel.g === "staged" ? "index" : "worktree";
+      const result = await invoke("git/diff", {
+        path: sel.p,
+        mode,
+        ignoreWhitespace: state.ignoreWhitespace,
+        ...(sel.root ? { repoRoot: sel.root } : {}),
+      });
+      const key = JSON.stringify([
+        sel.rk ?? ".", sel.g, sel.p, sel.root ?? null, mode, state.ignoreWhitespace,
+        result.ok ? result.text : `!${result.message ?? ""}`,
+      ]);
+      if (key === paintedDiffKey) return;
+      paintedDiffKey = key;
+      if (!result.ok) {
+        state.diff = { text: "", error: result.message };
+        paintDiff();
+        diffHost.append(h("div", { class: "banner error" }, [
+          h("div", { class: "banner-text" }, [
+            h("div", { text: result.message ?? t("diff") }),
+          ]),
+        ]));
+        return;
+      }
+      state.diff = result;
+      paintDiff();
+    }
 
     function setIgnoreWhitespace(enabled) {
       state.ignoreWhitespace = enabled;
@@ -2179,7 +2199,6 @@
        state.diff = null;
        state.filter = "";
        state.submodules = [];
-       state.subLoading = false;
        // A commit draft belongs to the repository it was typed against: carrying
        // the message/amend/signoff across would commit one repo's text in another.
        state.message = "";
@@ -2188,7 +2207,59 @@
        messageInput.value = "";
        amendBox.checked = false;
        signoffBox.checked = false;
+       // The next paint is for a different repository: it must not be skipped.
+       lastPaintSignature = null;
+       paintedDiffKey = null;
      }
+
+    /**
+     * Everything a repaint reads, as one string.
+     *
+     * The pane used to be repainted three or four times per refresh — root
+     * status, then the submodule sections, then the diff — and a quiet
+     * heartbeat repeats that every few seconds whether or not Git reported
+     * anything new. Measured on an idle repository, that tore down and rebuilt
+     * ~2,500 nodes four times per tick, which is what the panel shows as a
+     * twitch every few seconds (and it keeps a core warm while nobody is
+     * looking). A refresh that lands on the same signature has nothing to draw.
+     */
+    function paintSignature() {
+      return JSON.stringify([
+        loadedRepo,
+        state.error ?? null,
+        state.repo?.branch ?? null,
+        state.repo?.operation ?? null,
+        state.repo?.staged ?? null,
+        state.repo?.unstaged ?? null,
+        state.repo?.untracked ?? null,
+        state.repo?.conflicted ?? null,
+        state.repo?.stashes ?? null,
+        state.repo?.siblingMode ?? null,
+        state.repo?.user ?? null,
+        state.allRepos ?? null,
+        state.submodules ?? null,
+        state.recentCommit ?? null,
+        state.selection ?? null,
+        state.filter,
+        state.onlyChecked,
+        state.groupByDirectory,
+        state.compactDirs,
+        state.diffUnified,
+        state.showWhitespaces,
+        state.showLineNumbers,
+        state.amend,
+        state.signoff,
+        state.messages ?? null,
+        state.busy === true,
+        state.syncing === true,
+        state.generating === true,
+        [...state.collapsed].sort(),
+      ]);
+    }
+
+    /** `null` forces the next refresh to paint; cleared on a repository switch. */
+    let lastPaintSignature = null;
+
     // Overlapping refreshes share one dimming counter so the list stays
     // dimmed until the last one settles, instead of flashing mid-flight.
     let refreshDepth = 0;
@@ -2231,29 +2302,29 @@
            : ((state.submodules ?? []).find((entry) => entry.rel === sel.rk)?.status?.[sel.g] ?? []);
          if (!list.some((file) => file.path === sel.p)) state.selection = null;
        }
-       // IDEA-like aggregation: the parent only prints one gitlink line per
-       // submodule, so fetch dirty submodules' own statuses for the inline
-       // sections. Paint first (fast), then fill the sections in.
-       paintAll();
+      // IDEA-like aggregation: the parent only prints one gitlink line per
+      // submodule, so dirty submodules' own statuses are fetched for the inline
+      // sections — before the paint, not after it. Painting the root status
+      // first and the sections second is what made one refresh rebuild the
+      // whole tree twice, with a "…" in the header in between.
+      // The very first paint of a session must not wait for every submodule,
+      // so it still goes out immediately and fills the sections in later.
+      if (lastPaintSignature === null) paintAll();
       const hasSubmodule = result.siblingMode === true
         || [...(result.staged ?? []), ...(result.unstaged ?? [])].some((file) => file?.submodule)
         // An embedded (non-submodule) repo shows as one untracked dir entry;
         // Git never descends into it, so its inner changes need the same fetch.
         || (result.untracked ?? []).some((file) => String(file?.path ?? "").endsWith("/"));
       if (hasSubmodule) {
-        state.subLoading = true;
-         paintChangesHeader();
-         try {
-           const subs = await invoke("git/submodule-statuses");
-           state.submodules = subs?.ok ? (subs.submodules ?? []) : [];
-         } catch {
-           state.submodules = [];
-         }
-         state.subLoading = false;
-       } else {
-         state.submodules = [];
-         state.subLoading = false;
-       }
+        try {
+          const subs = await invoke("git/submodule-statuses");
+          state.submodules = subs?.ok ? (subs.submodules ?? []) : [];
+        } catch {
+          state.submodules = [];
+        }
+      } else {
+        state.submodules = [];
+      }
        if (!state.selection) {
          const firstRoot = ["conflicted", "unstaged", "staged", "untracked"]
            .flatMap((group) => (result[group] ?? []).map((file) => ({ rk: ".", g: group, p: file.path, root: result.repo?.root ?? null })))[0];
@@ -2275,7 +2346,14 @@
        } catch {
          state.recentCommit = null;
        }
-       paintAll();
+      // One paint per refresh, and none at all when the repository is exactly
+      // as the last paint left it — the diff below still reloads, because a
+      // file can be edited without its Git status changing.
+      const signature = paintSignature();
+      if (signature !== lastPaintSignature) {
+        lastPaintSignature = signature;
+        paintAll();
+      }
        await loadDiff();
        return result;
      }
@@ -2316,7 +2394,13 @@
       }
     })();
 
-    window.addEventListener("pig:appearance", () => paintAll());
+    // Same reason as the log view: a theme or locale switch changes what every
+    // label says, and the paint guard would otherwise keep the old language.
+    window.addEventListener("pig:appearance", () => {
+      lastPaintSignature = null;
+      paintedDiffKey = null;
+      paintAll();
+    });
     PIG.watchWorkspace(() => {
       // A project switch invalidates the list as much as the repository.
       loadRepositories().then(() => refresh()).catch(() => {});

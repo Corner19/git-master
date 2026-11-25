@@ -5,7 +5,10 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const source = read("main.js");
-const start = source.indexOf("async function draftDailySummary(");
+// The prompt is a module constant now, shared with the daily report, so the
+// slice starts there: the summary was tested together with its own wording, and
+// still is.
+const start = source.indexOf("const DAILY_SUMMARY_SYSTEM");
 const end = source.indexOf("function localTodayRange(", start);
 assert.ok(start >= 0 && end > start);
 let calls = 0;

@@ -98,3 +98,27 @@ assert.equal(state.syncing, null);
 assert.deepEqual(pullReposCalledWith, context.state.allRepos, "pullRepos receives allRepos targets");
 assert.equal(reportPullOutcomesCalledWith.length, 2, "reportPullOutcomes reports both repo outcomes");
 console.log("PASS: multi-repo fetch-icon pull routing, busy guard, and outcome reporting");
+
+// A full color palette must not turn repository coloring into a busy loop.
+const paletteStart = source.indexOf("    const REPO_COLORS = [");
+const colorStart = source.indexOf("    function repoColorMap(ctxs) {", paletteStart);
+const colorEnd = source.indexOf("    function filesForGroup(", colorStart);
+assert.ok(paletteStart >= 0 && colorStart > paletteStart && colorEnd > colorStart, "repoColorMap exists");
+const colorContext = vm.createContext({});
+vm.runInContext(source.slice(paletteStart, colorEnd), colorContext, { timeout: 1000 });
+const repoContexts = (count) => Array.from({ length: count }, (_, index) => ({
+  rk: `repo-${String(index).padStart(2, "0")}`,
+  label: `repo-${index}`,
+}));
+const runColorMap = (count) => vm.runInContext(
+  `repoColorMap(${JSON.stringify(repoContexts(count))})`,
+  colorContext,
+  { timeout: 1000 },
+);
+const eight = runColorMap(8);
+assert.equal(eight.size, 8, "eight repositories each get a color");
+assert.equal(new Set(eight.values()).size, 8, "eight repositories get distinct colors");
+const nine = runColorMap(9);
+assert.equal(nine.size, 9, "a ninth repository returns instead of spinning forever");
+assert.equal(new Set(nine.values()).size, 8, "nine repositories reuse the bounded palette");
+console.log("PASS: repository colors terminate when the palette is full");

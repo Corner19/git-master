@@ -1956,6 +1956,189 @@ button.busy .spinner {
   }
 }
 
+/* ---- daily report (日报) ---- */
+
+.report-side {
+  flex: 0 0 auto;
+  width: 220px;
+  min-width: 150px;
+  max-width: 40%;
+  border-right: 1px solid var(--border-soft);
+}
+
+.report-list,
+.report-detail {
+  padding: 4px 0;
+}
+
+.report-row .report-count {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.report-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12px;
+}
+
+.report-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.report-warning {
+  margin: 8px 12px 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--status-conflict, #d9822b);
+  background: var(--chrome-bg);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.report-summary {
+  margin: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--chrome-bg);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.report-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.report-commits .pane-header,
+.report-repos-list .pane-header {
+  margin-top: 6px;
+}
+
+.report-commit,
+.report-repo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+
+.report-commit:hover,
+.report-repo:hover {
+  background: var(--row-hover, rgba(128, 128, 128, 0.08));
+}
+
+.report-hash {
+  flex: 0 0 auto;
+  color: var(--fg-secondary);
+}
+
+.report-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-repos,
+.report-remote {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.report-repo .report-remote {
+  flex: 1 1 auto;
+}
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+}
+
+.report-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  font-size: 12px;
+}
+
+.report-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.report-field.column {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.report-field input[type="text"] {
+  width: 80px;
+}
+
+.report-field select,
+.report-field textarea {
+  width: 100%;
+  max-width: 340px;
+}
+
+.report-field textarea {
+  min-height: 62px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  color: var(--fg-primary, inherit);
+  background: var(--panel-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+}
+
+.report-hint {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.report-repo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.report-repo-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.report-repo-option:hover {
+  background: var(--row-hover, rgba(128, 128, 128, 0.08));
+}
+
     </style>
   </head>
   <body>
@@ -1996,6 +2179,44 @@ window.__PI_IDEA_GIT_SURFACE__ = "unified";
       todayCommitsEmpty: "No commits today.",
       todayCommitsCount: "{projects} projects · {commits} commits",
       todayCommitsErrors: "Projects that could not be read",
+      report: "Daily report",
+      reportHint: "Every repository in this project · committer time · local timezone",
+      reportGenerate: "Generate daily report",
+      reportRegenerate: "Regenerate",
+      reportHistory: "History",
+      reportDetail: "Report",
+      reportSettings: "Settings",
+      reportEmpty: "No commits in this window, so no report was generated.",
+      reportEmptyHistory: "No reports yet. Generate one to start the history.",
+      reportWindow: "Window",
+      reportCommits: "{{count}} commits",
+      reportRepositories: "{{count}} repositories",
+      reportShared: "{{count}} seen in more than one repository",
+      reportWarnings: "Warnings",
+      reportSchedule: "Generate at",
+      reportEnabled: "Generate automatically on weekdays",
+      reportModel: "Model",
+      reportAuthors: "Author emails",
+      reportAuthorsHint: "One per line. Leave empty to use the identity each repository declares.",
+      reportRepositoriesTitle: "Repositories in this report",
+      reportRepositoriesHint: "Uncheck a repository to leave it out.",
+      reportNoRemote: "no remote address",
+      reportSave: "Save",
+      reportSaved: "Daily report settings saved",
+      reportTooLarge: "Too much for one summary — exclude a repository or shorten the window.",
+      reportNoModel: "No model is available",
+      reportInRepositories: "In: {{repos}}",
+      reportStatus: "State",
+      reportStatusStored: "Stored locally",
+      reportTriggerManual: "manual",
+      reportTriggerScheduled: "scheduled",
+      reportDelete: "Delete",
+      reportDeleteConfirm: "Delete the report for {{date}}?",
+      reportDeleted: "Report deleted",
+      reportCopy: "Copy summary",
+      reportCopied: "Summary copied",
+      reportGeneratedAt: "Generated",
+      reportModelUsed: "Model",
       amend: "Amend",
       signOff: "Sign-off commit",
       runHooks: "Run Git hooks",
@@ -2272,6 +2493,44 @@ window.__PI_IDEA_GIT_SURFACE__ = "unified";
       todayCommitsEmpty: "今天没有提交记录。",
       todayCommitsCount: "{projects} 个项目 · {commits} 条提交",
       todayCommitsErrors: "以下项目读取失败",
+      report: "日报",
+      reportHint: "本项目全部仓库 · 提交者时间 · 本地时区",
+      reportGenerate: "生成日报",
+      reportRegenerate: "重新生成",
+      reportHistory: "历史",
+      reportDetail: "明细",
+      reportSettings: "设置",
+      reportEmpty: "该区间内没有提交，未生成日报。",
+      reportEmptyHistory: "还没有日报，生成一份开始记录。",
+      reportWindow: "统计区间",
+      reportCommits: "{{count}} 条提交",
+      reportRepositories: "{{count}} 个仓库",
+      reportShared: "{{count}} 条在多仓重复",
+      reportWarnings: "提示",
+      reportSchedule: "生成时间",
+      reportEnabled: "工作日自动生成",
+      reportModel: "模型",
+      reportAuthors: "作者邮箱",
+      reportAuthorsHint: "每行一个。留空则使用各仓库自己声明的身份。",
+      reportRepositoriesTitle: "纳入日报的仓库",
+      reportRepositoriesHint: "取消勾选即排除该仓库。",
+      reportNoRemote: "无远端地址",
+      reportSave: "保存",
+      reportSaved: "日报设置已保存",
+      reportTooLarge: "内容过多，无法一次总结 —— 请排除仓库或缩短区间。",
+      reportNoModel: "没有可用模型",
+      reportInRepositories: "所在仓库：{{repos}}",
+      reportStatus: "状态",
+      reportStatusStored: "已存本地",
+      reportTriggerManual: "手动",
+      reportTriggerScheduled: "定时",
+      reportDelete: "删除",
+      reportDeleteConfirm: "删除 {{date}} 的日报？",
+      reportDeleted: "日报已删除",
+      reportCopy: "复制摘要",
+      reportCopied: "摘要已复制",
+      reportGeneratedAt: "生成于",
+      reportModelUsed: "模型",
       amend: "修正上一次提交",
       signOff: "签名",
       runHooks: "运行 Git 钩子",
@@ -4919,7 +5178,6 @@ function markSubmodule(hunk) {
       // `backend` are invisible while the selector points at the parent.
       // In sibling mode the same slots hold the other sibling repos.
       submodules: [],
-      subLoading: false,
       // Last `git/repos` answer: decides whether the toolbar Push opens the
       // multi-repo dialog instead of pushing the current repo directly.
       allRepos: [],
@@ -5165,7 +5423,6 @@ function markSubmodule(hunk) {
        const total = counts.staged + counts.unstaged + counts.untracked + counts.conflicted;
        changesHeader.append(h("span", { text: t("changes") }));
        changesHeader.append(h("span", { class: "muted", text: total ? `${total}` : "" }));
-       if (state.subLoading) changesHeader.append(h("span", { class: "muted", text: "…" }));
       changesHeader.append(h("div", { class: "toolbar-spacer" }));
       // IDEA puts this search in the changes pane's own title bar: typing is how
       // you find one file among seventy-four, and the tree below narrows to the
@@ -5487,7 +5744,12 @@ function markSubmodule(hunk) {
         let hash = 0;
         for (const char of String(ctx.rk ?? "")) hash = (hash * 31 + char.charCodeAt(0)) | 0;
         let index = Math.abs(hash) % REPO_COLORS.length;
-        while (used.has(index)) index = (index + 1) % REPO_COLORS.length;
+        // Distinct colors are best-effort: the palette has only eight slots.
+        // Probing a full `used` set never terminates, so once every color is
+        // taken, reuse the hash color instead of spinning forever.
+        if (used.size < REPO_COLORS.length) {
+          while (used.has(index)) index = (index + 1) % REPO_COLORS.length;
+        }
         used.add(index);
         map.set(ctx.rk, REPO_COLORS[index]);
       }
@@ -6271,36 +6533,53 @@ function markSubmodule(hunk) {
        const root = ctx?.root ?? state.selection?.root ?? null;
        if (root) payload.repoRoot = root;
        report(await invoke(staging ? "git/stage" : "git/unstage", payload), staging ? t("stageFile") : t("unstageFile"));
-       await refresh();
-     }
+      await refresh();
+    }
 
-     async function loadDiff() {
-       if (!state.selection) {
-         state.diff = null;
-         paintDiff();
-         return;
-       }
-       const sel = state.selection;
-       const mode = sel.g === "staged" ? "index" : "worktree";
-       const result = await invoke("git/diff", {
-         path: sel.p,
-         mode,
-         ignoreWhitespace: state.ignoreWhitespace,
-         ...(sel.root ? { repoRoot: sel.root } : {}),
-       });
-       if (!result.ok) {
-         state.diff = { text: "", error: result.message };
-         paintDiff();
-         diffHost.append(h("div", { class: "banner error" }, [
-           h("div", { class: "banner-text" }, [
-             h("div", { text: result.message ?? t("diff") }),
-           ]),
-         ]));
-         return;
-       }
-       state.diff = result;
-       paintDiff();
-     }
+    /**
+     * What the diff pane is currently showing, so an unchanged diff is not
+     * rebuilt. A refresh reloads the diff on purpose — a file can be edited
+     * without its Git status moving — but on an idle panel that reload used to
+     * throw away every rendered row (and the row under the pointer) every few
+     * seconds for text that had not changed.
+     */
+    let paintedDiffKey = null;
+
+    async function loadDiff() {
+      if (!state.selection) {
+        if (paintedDiffKey === "none") return;
+        paintedDiffKey = "none";
+        state.diff = null;
+        paintDiff();
+        return;
+      }
+      const sel = state.selection;
+      const mode = sel.g === "staged" ? "index" : "worktree";
+      const result = await invoke("git/diff", {
+        path: sel.p,
+        mode,
+        ignoreWhitespace: state.ignoreWhitespace,
+        ...(sel.root ? { repoRoot: sel.root } : {}),
+      });
+      const key = JSON.stringify([
+        sel.rk ?? ".", sel.g, sel.p, sel.root ?? null, mode, state.ignoreWhitespace,
+        result.ok ? result.text : `!${result.message ?? ""}`,
+      ]);
+      if (key === paintedDiffKey) return;
+      paintedDiffKey = key;
+      if (!result.ok) {
+        state.diff = { text: "", error: result.message };
+        paintDiff();
+        diffHost.append(h("div", { class: "banner error" }, [
+          h("div", { class: "banner-text" }, [
+            h("div", { text: result.message ?? t("diff") }),
+          ]),
+        ]));
+        return;
+      }
+      state.diff = result;
+      paintDiff();
+    }
 
     function setIgnoreWhitespace(enabled) {
       state.ignoreWhitespace = enabled;
@@ -6523,7 +6802,6 @@ function markSubmodule(hunk) {
        state.diff = null;
        state.filter = "";
        state.submodules = [];
-       state.subLoading = false;
        // A commit draft belongs to the repository it was typed against: carrying
        // the message/amend/signoff across would commit one repo's text in another.
        state.message = "";
@@ -6532,7 +6810,59 @@ function markSubmodule(hunk) {
        messageInput.value = "";
        amendBox.checked = false;
        signoffBox.checked = false;
+       // The next paint is for a different repository: it must not be skipped.
+       lastPaintSignature = null;
+       paintedDiffKey = null;
      }
+
+    /**
+     * Everything a repaint reads, as one string.
+     *
+     * The pane used to be repainted three or four times per refresh — root
+     * status, then the submodule sections, then the diff — and a quiet
+     * heartbeat repeats that every few seconds whether or not Git reported
+     * anything new. Measured on an idle repository, that tore down and rebuilt
+     * ~2,500 nodes four times per tick, which is what the panel shows as a
+     * twitch every few seconds (and it keeps a core warm while nobody is
+     * looking). A refresh that lands on the same signature has nothing to draw.
+     */
+    function paintSignature() {
+      return JSON.stringify([
+        loadedRepo,
+        state.error ?? null,
+        state.repo?.branch ?? null,
+        state.repo?.operation ?? null,
+        state.repo?.staged ?? null,
+        state.repo?.unstaged ?? null,
+        state.repo?.untracked ?? null,
+        state.repo?.conflicted ?? null,
+        state.repo?.stashes ?? null,
+        state.repo?.siblingMode ?? null,
+        state.repo?.user ?? null,
+        state.allRepos ?? null,
+        state.submodules ?? null,
+        state.recentCommit ?? null,
+        state.selection ?? null,
+        state.filter,
+        state.onlyChecked,
+        state.groupByDirectory,
+        state.compactDirs,
+        state.diffUnified,
+        state.showWhitespaces,
+        state.showLineNumbers,
+        state.amend,
+        state.signoff,
+        state.messages ?? null,
+        state.busy === true,
+        state.syncing === true,
+        state.generating === true,
+        [...state.collapsed].sort(),
+      ]);
+    }
+
+    /** `null` forces the next refresh to paint; cleared on a repository switch. */
+    let lastPaintSignature = null;
+
     // Overlapping refreshes share one dimming counter so the list stays
     // dimmed until the last one settles, instead of flashing mid-flight.
     let refreshDepth = 0;
@@ -6575,29 +6905,29 @@ function markSubmodule(hunk) {
            : ((state.submodules ?? []).find((entry) => entry.rel === sel.rk)?.status?.[sel.g] ?? []);
          if (!list.some((file) => file.path === sel.p)) state.selection = null;
        }
-       // IDEA-like aggregation: the parent only prints one gitlink line per
-       // submodule, so fetch dirty submodules' own statuses for the inline
-       // sections. Paint first (fast), then fill the sections in.
-       paintAll();
+      // IDEA-like aggregation: the parent only prints one gitlink line per
+      // submodule, so dirty submodules' own statuses are fetched for the inline
+      // sections — before the paint, not after it. Painting the root status
+      // first and the sections second is what made one refresh rebuild the
+      // whole tree twice, with a "…" in the header in between.
+      // The very first paint of a session must not wait for every submodule,
+      // so it still goes out immediately and fills the sections in later.
+      if (lastPaintSignature === null) paintAll();
       const hasSubmodule = result.siblingMode === true
         || [...(result.staged ?? []), ...(result.unstaged ?? [])].some((file) => file?.submodule)
         // An embedded (non-submodule) repo shows as one untracked dir entry;
         // Git never descends into it, so its inner changes need the same fetch.
         || (result.untracked ?? []).some((file) => String(file?.path ?? "").endsWith("/"));
       if (hasSubmodule) {
-        state.subLoading = true;
-         paintChangesHeader();
-         try {
-           const subs = await invoke("git/submodule-statuses");
-           state.submodules = subs?.ok ? (subs.submodules ?? []) : [];
-         } catch {
-           state.submodules = [];
-         }
-         state.subLoading = false;
-       } else {
-         state.submodules = [];
-         state.subLoading = false;
-       }
+        try {
+          const subs = await invoke("git/submodule-statuses");
+          state.submodules = subs?.ok ? (subs.submodules ?? []) : [];
+        } catch {
+          state.submodules = [];
+        }
+      } else {
+        state.submodules = [];
+      }
        if (!state.selection) {
          const firstRoot = ["conflicted", "unstaged", "staged", "untracked"]
            .flatMap((group) => (result[group] ?? []).map((file) => ({ rk: ".", g: group, p: file.path, root: result.repo?.root ?? null })))[0];
@@ -6619,7 +6949,14 @@ function markSubmodule(hunk) {
        } catch {
          state.recentCommit = null;
        }
-       paintAll();
+      // One paint per refresh, and none at all when the repository is exactly
+      // as the last paint left it — the diff below still reloads, because a
+      // file can be edited without its Git status changing.
+      const signature = paintSignature();
+      if (signature !== lastPaintSignature) {
+        lastPaintSignature = signature;
+        paintAll();
+      }
        await loadDiff();
        return result;
      }
@@ -6660,7 +6997,13 @@ function markSubmodule(hunk) {
       }
     })();
 
-    window.addEventListener("pig:appearance", () => paintAll());
+    // Same reason as the log view: a theme or locale switch changes what every
+    // label says, and the paint guard would otherwise keep the old language.
+    window.addEventListener("pig:appearance", () => {
+      lastPaintSignature = null;
+      paintedDiffKey = null;
+      paintAll();
+    });
     PIG.watchWorkspace(() => {
       // A project switch invalidates the list as much as the repository.
       loadRepositories().then(() => refresh()).catch(() => {});
@@ -6687,6 +7030,393 @@ function markSubmodule(hunk) {
   PIG.branchWidget = { mount: mountBranchWidget };
   PIG.commitView = { mount };
   PIG.statusColor = statusColor;
+})(window.PIG || (window.PIG = {}));
+
+/* ================= src/report-view.js ================= */
+/**
+ * The daily report surface (日报).
+ *
+ * A report is per project, not per repository: it covers every repository the
+ * workspace holds and lists each one with its own address, so a project that
+ * points at several remotes still reads as one day of work. The engine does the
+ * collecting (`lib/daily-report.js`); this file renders what it returns and
+ * forwards the few actions a person needs — generate, copy, delete, configure.
+ *
+ * History is a list on the left and one report on the right, the same shape as
+ * the Log pane beside it: "what did I do on the 3rd?" is answered by picking a
+ * row, not by a dialog that covers the list it came from.
+ */
+(function (PIG) {
+  "use strict";
+
+  const { h, t, tf, invoke, toast, clear, iconButton, textButton, dialog, runWithPill, errorText } = PIG;
+
+  /** Engine codes that deserve wording of their own. */
+  const FRIENDLY = {
+    REPORT_TOO_LARGE: () => t("reportTooLarge"),
+    NO_MODEL: () => t("reportNoModel"),
+    PERMISSION_DENIED: () => t("modelPermission"),
+    NO_REPOSITORY: () => t("notARepository"),
+  };
+
+  function failureText(result) {
+    const friendly = FRIENDLY[result?.code];
+    return friendly ? friendly() : errorText(result);
+  }
+
+  function formatWindow(interval) {
+    if (!interval?.from || !interval?.to) return "";
+    return `${PIG.formatDateTime(interval.from)} → ${PIG.formatDateTime(interval.to)}`;
+  }
+
+  /**
+   * The stored model keeps a delivery slot even though nothing is delivered
+   * today; `stored` is the only state it can hold now, and an unknown one is
+   * shown verbatim rather than invented into a friendlier word.
+   */
+  function stateLabel(delivery) {
+    const status = String(delivery?.status ?? "stored");
+    return status === "stored" ? t("reportStatusStored") : status;
+  }
+
+  function mount(root) {
+    const state = {
+      config: null,
+      repositories: [],
+      detectedAuthors: [],
+      models: [],
+      reports: [],
+      report: null,
+      settings: false,
+      loading: false,
+    };
+
+    const listHost = h("div", { class: "scroll grow report-list" });
+    const detailHost = h("div", { class: "scroll grow report-detail" });
+    const toolbar = h("div", { class: "toolbar" });
+    const generateButton = textButton(t("reportGenerate"), t("reportGenerate"), () => generate().catch(() => {}), { class: "primary" });
+    const copyButton = iconButton("copy", t("reportCopy"), () => copy().catch(() => {}), { disabled: true });
+    const settingsButton = iconButton("gear", t("reportSettings"), () => {
+      state.settings = !state.settings;
+      paint();
+    });
+    const refreshButton = iconButton("refresh", t("refresh"), () => load().catch(() => {}), {});
+
+    toolbar.append(generateButton, copyButton, h("div", { class: "toolbar-spacer" }), settingsButton, refreshButton);
+    root.append(
+      toolbar,
+      h("div", { class: "row grow" }, [
+        h("div", { class: "column report-side" }, [
+          h("div", { class: "pane-header" }, [h("span", { text: t("reportHistory") })]),
+          listHost,
+        ]),
+        h("div", { class: "divider-v" }),
+        h("div", { class: "column grow" }, [detailHost]),
+      ]),
+    );
+
+    // ------------------------------------------------------------- loading ---
+
+    async function load() {
+      if (state.loading) return;
+      state.loading = true;
+      try {
+        const config = await invoke("git/report-config");
+        if (!config?.ok) {
+          clear(listHost).append(h("div", { class: "empty-state" }, [
+            h("div", { class: "headline", text: failureText(config) }),
+          ]));
+          return;
+        }
+        state.config = config.config;
+        state.repositories = config.repositories ?? [];
+        state.detectedAuthors = config.detectedAuthors ?? [];
+        state.models = config.models ?? [];
+
+        const listed = await invoke("git/report-list");
+        state.reports = listed?.ok ? listed.reports ?? [] : [];
+        // Keep the selection honest: a deleted date, or a first run, shows the
+        // newest report instead of a stale one.
+        const known = state.reports.some((entry) => entry.reportDate === state.report?.reportDate);
+        if (!known) {
+          state.report = state.reports.length ? await getReport(state.reports[0].reportDate) : null;
+        }
+        paint();
+      } finally {
+        state.loading = false;
+      }
+    }
+
+    async function getReport(date) {
+      const result = await invoke("git/report-get", { date });
+      return result?.ok ? result.report : null;
+    }
+
+    // ------------------------------------------------------------ painting ---
+
+    function paint() {
+      paintList();
+      paintDetail();
+      copyButton.disabled = !state.report?.summary;
+      settingsButton.classList.toggle("active", state.settings);
+    }
+
+    function paintList() {
+      clear(listHost);
+      if (!state.reports.length) {
+        listHost.append(h("div", { class: "empty-state" }, [
+          h("div", { class: "headline", text: t("reportEmptyHistory") }),
+        ]));
+        return;
+      }
+      for (const entry of state.reports) {
+        listHost.append(h("div", {
+          class: "tree-row report-row",
+          tabindex: "0",
+          "aria-selected": state.report?.reportDate === entry.reportDate ? "true" : "false",
+          title: entry.summary,
+          onclick: () => select(entry.reportDate).catch(() => {}),
+          onkeydown: (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            select(entry.reportDate).catch(() => {});
+          },
+        }, [
+          h("span", { class: "name mono", text: entry.reportDate }),
+          h("span", { class: "muted report-count", text: tf("reportCommits", { count: entry.commits }) }),
+          entry.trigger === "scheduled" ? h("span", { class: "badge local", text: t("reportTriggerScheduled") }) : null,
+        ]));
+      }
+    }
+
+    async function select(date) {
+      state.settings = false;
+      state.report = await getReport(date);
+      paint();
+    }
+
+    function paintDetail() {
+      clear(detailHost);
+      if (state.settings) return paintSettings();
+
+      const report = state.report;
+      if (!report) {
+        detailHost.append(h("div", { class: "empty-state" }, [
+          h("div", { class: "headline", text: t("reportDetail") }),
+          h("div", { class: "muted", text: t("reportEmptyHistory") }),
+        ]));
+        return;
+      }
+
+      detailHost.append(h("div", { class: "report-head" }, [
+        h("div", { class: "report-title" }, [
+          h("strong", { text: report.reportDate }),
+          h("span", { class: "badge", title: t("reportStatus"), text: stateLabel(report.delivery) }),
+          report.trigger === "scheduled" ? h("span", { class: "badge local", text: t("reportTriggerScheduled") }) : null,
+        ]),
+        h("div", { class: "muted", text: `${t("reportWindow")}: ${formatWindow(report.interval)}` }),
+        h("div", { class: "muted", text: [
+          tf("reportCommits", { count: report.commits?.length ?? 0 }),
+          tf("reportRepositories", { count: report.repositories?.length ?? 0 }),
+          report.stats?.duplicates ? tf("reportShared", { count: report.stats.duplicates }) : null,
+          `${t("reportGeneratedAt")} ${PIG.formatDateTime(Date.parse(report.generatedAt))}`,
+          `${t("reportModelUsed")} ${report.modelKey ?? ""}`.trim(),
+        ].filter(Boolean).join(" · ") }),
+      ]));
+
+      for (const warning of report.warnings ?? []) {
+        detailHost.append(h("div", { class: "report-warning", text: warning }));
+      }
+
+      detailHost.append(report.summary
+        ? h("pre", { class: "report-summary", text: report.summary })
+        : h("div", { class: "muted report-empty", text: t("reportEmpty") }));
+
+      // Each commit keeps the repository it came from and every repository that
+      // carries it: that is the "one project, several addresses" case, shown
+      // rather than collapsed into a number.
+      if (report.commits?.length) {
+        const host = h("div", { class: "report-commits" });
+        host.append(h("div", { class: "pane-header", text: t("reportDetail") }));
+        for (const commit of report.commits) {
+          host.append(h("div", { class: "report-commit" }, [
+            h("span", { class: "mono report-hash", text: commit.short ?? "" }),
+            h("span", { class: "report-subject", text: commit.subject ?? "" }),
+            h("span", { class: "muted report-repos", title: commit.hash, text: tf("reportInRepositories", { repos: (commit.repos ?? []).join(", ") }) }),
+          ]));
+        }
+        detailHost.append(host);
+      }
+
+      if (report.repositories?.length) {
+        const host = h("div", { class: "report-repos-list" });
+        host.append(h("div", { class: "pane-header", text: t("reportRepositoriesTitle") }));
+        for (const repository of report.repositories) {
+          host.append(h("div", { class: "report-repo" }, [
+            h("span", { class: "name", text: repository.rel }),
+            h("span", {
+              class: "muted mono report-remote",
+              title: repository.remote || t("reportNoRemote"),
+              text: repository.remote || t("reportNoRemote"),
+            }),
+            h("span", { class: "muted report-count", text: tf("reportCommits", { count: repository.commitCount ?? 0 }) }),
+          ]));
+        }
+        detailHost.append(host);
+      }
+
+      detailHost.append(h("div", { class: "report-actions" }, [
+        textButton(t("reportDelete"), t("reportDelete"), () => remove(report.reportDate).catch(() => {}), { class: "bordered" }),
+        textButton(t("reportRegenerate"), t("reportRegenerate"), () => generate(report.reportDate).catch(() => {}), { class: "bordered" }),
+      ]));
+    }
+
+    // ------------------------------------------------------------ settings ---
+
+    function paintSettings() {
+      const config = state.config ?? {};
+      const excluded = new Set(config.excludeRepos ?? []);
+
+      const enabled = h("input", { type: "checkbox" });
+      enabled.checked = config.enabled === true;
+      const schedule = h("input", { type: "text", value: config.schedule ?? "17:20", size: "6", placeholder: "17:20" });
+
+      const model = h("select", null);
+      if (!state.models.length) {
+        model.append(h("option", { value: "", text: t("reportNoModel") }));
+      } else {
+        for (const entry of state.models) {
+          const option = h("option", { value: entry.key, text: entry.label ?? entry.key });
+          if (entry.key === config.modelKey) option.selected = true;
+          model.append(option);
+        }
+        if (!config.modelKey) model.selectedIndex = 0;
+      }
+
+      const authors = h("textarea", { rows: "3", spellcheck: "false" });
+      authors.value = (config.authorEmails ?? []).join("\n");
+      authors.placeholder = state.detectedAuthors.join("\n") || t("reportAuthorsHint");
+
+      const reposHost = h("div", { class: "report-repo-picker" });
+      if (!state.repositories.length) {
+        reposHost.append(h("div", { class: "muted", text: t("notARepository") }));
+      }
+      for (const repository of state.repositories) {
+        const box = h("input", { type: "checkbox" });
+        box.checked = !excluded.has(repository.rel);
+        box.dataset.rel = repository.rel;
+        reposHost.append(h("label", { class: "report-repo-option", title: repository.remote || t("reportNoRemote") }, [
+          box,
+          h("span", { class: "name", text: repository.rel }),
+          h("span", { class: "muted mono report-remote", text: repository.remote || t("reportNoRemote") }),
+        ]));
+      }
+
+      detailHost.append(h("div", { class: "report-settings" }, [
+        h("div", { class: "pane-header", text: t("reportSettings") }),
+        h("label", { class: "report-field" }, [enabled, h("span", { text: t("reportEnabled") })]),
+        h("label", { class: "report-field" }, [h("span", { text: t("reportSchedule") }), schedule]),
+        h("label", { class: "report-field" }, [h("span", { text: t("reportModel") }), model]),
+        h("label", { class: "report-field column" }, [
+          h("span", { text: t("reportAuthors") }),
+          authors,
+          h("span", { class: "muted report-hint", text: t("reportAuthorsHint") }),
+        ]),
+        h("div", { class: "report-field column" }, [
+          h("span", { text: t("reportRepositoriesTitle") }),
+          h("span", { class: "muted report-hint", text: t("reportRepositoriesHint") }),
+          reposHost,
+        ]),
+        h("div", { class: "report-actions" }, [
+          textButton(t("reportSave"), t("reportSave"), () => save({ enabled, schedule, model, authors, reposHost }).catch(() => {}), { class: "primary" }),
+        ]),
+      ]));
+    }
+
+    // ------------------------------------------------------------- actions ---
+
+    async function save(form) {
+      const included = new Set([...form.reposHost.querySelectorAll("input:checked")].map((box) => box.dataset.rel));
+      const result = await invoke("git/report-config-save", {
+        config: {
+          enabled: form.enabled.checked,
+          schedule: form.schedule.value,
+          modelKey: form.model.value,
+          authorEmails: form.authors.value.split(/[\n,]/),
+          // The form lists what is *included*; the engine stores what is
+          // excluded, so this is the one place the two vocabularies meet.
+          excludeRepos: state.repositories.map((repository) => repository.rel).filter((rel) => !included.has(rel)),
+        },
+      });
+      if (!result?.ok) {
+        toast(failureText(result), "error");
+        return;
+      }
+      state.config = result.config;
+      toast(t("reportSaved"), "info");
+      await load();
+    }
+
+    async function generate(date) {
+      const result = await runWithPill(t("reportGenerate"), () => invoke("git/report-generate", date ? { date } : {}));
+      if (!result?.ok) {
+        toast(failureText(result), "error");
+        return;
+      }
+      if (result.empty) {
+        // No commits is an answer, not a failure: the engine refuses to ask the
+        // model for a summary of nothing, and the panel says so plainly.
+        toast(t("reportEmpty"), "info");
+        await load();
+        return;
+      }
+      // Show the fresh report immediately; `load()` then reconciles the list and
+      // keeps this selection, because its date is now in the history.
+      state.report = result.report;
+      state.settings = false;
+      await load();
+    }
+
+    async function copy() {
+      if (!state.report?.summary) return;
+      await PIG.copyText(state.report.summary);
+      toast(t("reportCopied"), "info");
+    }
+
+    async function remove(date) {
+      const confirmed = await dialog({
+        title: t("reportDelete"),
+        message: tf("reportDeleteConfirm", { date }),
+        confirmLabel: t("reportDelete"),
+        danger: true,
+      });
+      if (!confirmed) return;
+      const result = await invoke("git/report-delete", { date });
+      if (!result?.removed) {
+        toast(errorText(result), "error");
+        return;
+      }
+      toast(t("reportDeleted"), "info");
+      if (state.report?.reportDate === date) state.report = null;
+      await load();
+    }
+
+    // Not loaded eagerly: the surface is only visible once its tab is picked, and
+    // `applyMode` calls `refresh()` at that moment. A directory walk plus three
+    // `git` reads per repository on every panel open — for a tab the user may
+    // never look at — is work nobody asked for.
+    paint();
+
+    return {
+      refresh: () => load().catch(() => {}),
+      showSettings: () => {
+        state.settings = true;
+        paint();
+      },
+    };
+  }
+
+  PIG.reportView = { mount };
 })(window.PIG || (window.PIG = {}));
 
 /* ================= src/git-view.js ================= */
@@ -7109,19 +7839,9 @@ function markSubmodule(hunk) {
           paintToolbar();
         }
       }));
-      toolbar.append(syncButton("push", t("push"), "push", async () => {
-        if (state.syncing) return;
-        // Note: Git 视图的 Push 同样走多仓对话框，单仓时对话框内只有一行 — 见 .agents/notes/implemented/architecture/2026-09-12-multi-repo-push.md
-        state.syncing = "push";
-        paintToolbar();
-        try {
-          await PIG.openPushDialog({ onPushed: async () => { await refresh(); } });
-          await refresh();
-        } finally {
-          state.syncing = null;
-          paintToolbar();
-        }
-      }));
+      // Order matches the Commit toolbar exactly — refresh, pull, push, then the
+      // snapshot actions — so the two toolbars read as one bar with different
+      // endings rather than two bars that happen to share buttons.
       toolbar.append(syncButton("fetch", t("pull"), "pull", async () => {
         if (state.syncing) return;
         state.syncing = "pull";
@@ -7142,6 +7862,20 @@ function markSubmodule(hunk) {
           paintToolbar();
         }
       }));
+      toolbar.append(syncButton("push", t("push"), "push", async () => {
+        if (state.syncing) return;
+        // Note: Git 视图的 Push 同样走多仓对话框，单仓时对话框内只有一行 — 见 .agents/notes/implemented/architecture/2026-09-12-multi-repo-push.md
+        state.syncing = "push";
+        paintToolbar();
+        try {
+          await PIG.openPushDialog({ onPushed: async () => { await refresh(); } });
+          await refresh();
+        } finally {
+          state.syncing = null;
+          paintToolbar();
+        }
+      }));
+      toolbar.append(iconButton("clock", t("todayCommits"), () => PIG.openTodayCommits(), { disabled: syncDisabled }));
       toolbar.append(iconButton("stash", t("stashChanges"), async () => {
         if (state.syncing) return;
         const result = await PIG.stashChanges();
@@ -7149,7 +7883,7 @@ function markSubmodule(hunk) {
         PIG.reportSync(result, t("stash"));
         await refresh();
       }, { disabled: syncDisabled || !state.repo || !["staged", "unstaged", "untracked"].some((key) => state.repo[key]?.length) }));
-      toolbar.append(iconButton("clock", t("todayCommits"), () => PIG.openTodayCommits(), { disabled: syncDisabled }));
+      toolbar.append(h("div", { class: "toolbar-separator" }));
       toolbar.append(iconButton("arrowUp", t("goToHead"), (event) => {
         const head = state.repo?.branch?.oid;
         if (!head) return;
@@ -7253,7 +7987,34 @@ function markSubmodule(hunk) {
       });
     }
 
+    /*
+     * The three panes below are repainted from several places (toolbar filters,
+     * collapse toggles, selection, the refresh heartbeat), and every painter
+     * clears and rebuilds its host. On an idle panel the heartbeat repeated
+     * that every few seconds for a list that had not changed — hundreds of rows
+     * thrown away and rebuilt under the pointer. Each painter therefore keeps
+     * the key of what it last drew and returns when the next one is identical.
+     * The key carries a minute counter because the list and the stash rows
+     * print relative timestamps: those still tick, just once a minute instead
+     * of every heartbeat.
+     */
+    let paintedListKey = null;
+    let paintedBranchesKey = null;
+    let paintedDetailKey = null;
+
+    function minuteBucket() {
+      return Math.floor(Date.now() / 60_000);
+    }
+
     function paintList() {
+      const key = JSON.stringify([
+        state.error, state.repoPath, state.showGraph, state.selection,
+        state.repo?.branch?.oid ?? null, state.repo?.user ?? null,
+        visibleCommits().map((commit) => commit.hash),
+        minuteBucket(),
+      ]);
+      if (key === paintedListKey) return;
+      paintedListKey = key;
       PIG.clear(listHost);
       // A workspace that is not a repository (or a missing git binary) has to
       // say so: an empty list reads as "this tool is broken" instead of
@@ -7325,6 +8086,12 @@ function markSubmodule(hunk) {
     }
 
     function paintBranches() {
+      const key = JSON.stringify([
+        state.showBranches, state.repo?.branch ?? null, state.branches, state.tags,
+        state.remotes, state.stashes, state.collapsed, minuteBucket(),
+      ]);
+      if (key === paintedBranchesKey) return;
+      paintedBranchesKey = key;
       PIG.clear(branchesHost);
       if (!state.showBranches) return;
       paintHeadRow();
@@ -7822,6 +8589,9 @@ function markSubmodule(hunk) {
     }
 
     function paintDetail() {
+      const key = JSON.stringify([state.selection, state.changedFiles, state.details]);
+      if (key === paintedDetailKey) return;
+      paintedDetailKey = key;
       PIG.clear(changedHost);
       PIG.clear(detailsHost);
       if (!state.selection) {
@@ -8269,16 +9039,20 @@ function markSubmodule(hunk) {
     const splitter = h("div", { class: "splitter-y" });
     const logSurface = h("div", { class: "column grow", style: "flex: 1 1 0px; min-height: 80px; overflow: hidden;" });
     const consoleSurface = h("div", { class: "column grow hidden" });
-    mainContainer.append(commitSurface, splitter, logSurface, consoleSurface);
+    const reportSurface = h("div", { class: "column grow hidden" });
+    mainContainer.append(commitSurface, splitter, logSurface, consoleSurface, reportSurface);
 
     const commitView = PIG.commitView.mount(commitSurface);
     const logView = mountLog(logSurface);
     const consoleView = mountConsole(consoleSurface);
+    // Mounted once, painted on demand: the report surface owns its own history
+    // list, so rebuilding it on every tab switch would throw away the selection.
+    const reportView = PIG.reportView ? PIG.reportView.mount(reportSurface) : null;
 
     let mode = "split";
     try {
       const saved = localStorage.getItem("pig.unified_mode");
-      if (saved && (saved === "split" || saved === "commit" || saved === "log" || saved === "console")) {
+      if (saved && (saved === "split" || saved === "commit" || saved === "log" || saved === "console" || saved === "report")) {
         mode = saved;
       }
     } catch {}
@@ -8310,12 +9084,19 @@ function markSubmodule(hunk) {
         localStorage.setItem("pig.unified_mode", mode);
       } catch {}
 
+      // Every surface is reset before the one the mode asks for is shown: a
+      // hidden-but-visible-in-layout pane is how two tabs end up stacked.
+      commitSurface.classList.add("hidden");
+      logSurface.classList.add("hidden");
+      consoleSurface.classList.add("hidden");
+      reportSurface.classList.add("hidden");
+      splitter.classList.add("hidden");
+
       if (mode === "split") {
         commitSurface.classList.remove("hidden");
         commitSurface.style.display = "";
         splitter.classList.remove("hidden");
         logSurface.classList.remove("hidden");
-        consoleSurface.classList.add("hidden");
         const savedRatio = Math.max(15, Math.min(85, Number(localStorage.getItem("pig.commit_split_ratio")) || 50));
         commitSurface.style.flex = "0 0 auto";
         commitSurface.style.maxHeight = "calc(100% - 80px)";
@@ -8326,22 +9107,16 @@ function markSubmodule(hunk) {
         commitSurface.classList.remove("hidden");
         commitSurface.style.height = "100%";
         commitSurface.style.maxHeight = "none";
-        splitter.classList.add("hidden");
-        logSurface.classList.add("hidden");
-        consoleSurface.classList.add("hidden");
         commitView?.refresh?.();
       } else if (mode === "log") {
-        commitSurface.classList.add("hidden");
-        splitter.classList.add("hidden");
         logSurface.classList.remove("hidden");
-        consoleSurface.classList.add("hidden");
         logView?.refresh?.();
       } else if (mode === "console") {
-        commitSurface.classList.add("hidden");
-        splitter.classList.add("hidden");
-        logSurface.classList.add("hidden");
         consoleSurface.classList.remove("hidden");
         consoleView?.refresh?.();
+      } else if (mode === "report") {
+        reportSurface.classList.remove("hidden");
+        reportView?.refresh?.();
       }
       paintTabs();
     }
@@ -8353,6 +9128,7 @@ function markSubmodule(hunk) {
         { id: "log", label: t("log") },
         { id: "split", label: t("combined") },
         { id: "console", label: t("console") },
+        { id: "report", label: t("report") },
       ]) {
         tabs.append(h("button", {
           type: "button",
@@ -8366,7 +9142,16 @@ function markSubmodule(hunk) {
 
     applyMode(mode);
     root.append(tabs, mainContainer);
-    window.addEventListener("pig:appearance", paintTabs);
+    // A theme or locale switch rewrites every label the panes remember a key
+    // for, so it clears them first — otherwise the guard would keep the
+    // previous language on screen.
+    window.addEventListener("pig:appearance", () => {
+      paintedListKey = null;
+      paintedBranchesKey = null;
+      paintedDetailKey = null;
+      paintTabs();
+      paintAll();
+    });
     return {
       refresh: () => {
         if (mode === "split") {
@@ -8378,6 +9163,8 @@ function markSubmodule(hunk) {
           logView?.refresh?.();
         } else if (mode === "console") {
           consoleView?.refresh?.();
+        } else if (mode === "report") {
+          reportView?.refresh?.();
         }
       },
       setMode: applyMode,
@@ -8395,6 +9182,13 @@ function markSubmodule(hunk) {
     const surface = window.__PI_IDEA_GIT_SURFACE__ ?? "unified";
     if (surface === "commit") {
       PIG.commitView.mount(root);
+      return;
+    }
+    // The report entry is a page of its own, so it mounts only the report: the
+    // Commit and Log surfaces would otherwise do a directory walk and a `git log`
+    // nobody asked for, on a tab the user never opens.
+    if (surface === "report") {
+      PIG.reportView?.mount(root);
       return;
     }
     mountUnified(root);

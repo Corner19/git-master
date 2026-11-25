@@ -20,7 +20,9 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (relative) => readFileSync(join(root, relative), "utf8");
 
 const CSS = ["src/theme.css", "src/layout.css"];
-const JS = ["src/common.js", "src/diff.js", "src/commit-view.js", "src/git-view.js"];
+// `report-view.js` must come before `git-view.js`: the unified window mounts it
+// at boot, and each file is a plain IIFE against one shared `PIG` namespace.
+const JS = ["src/common.js", "src/diff.js", "src/commit-view.js", "src/report-view.js", "src/git-view.js"];
 
 const styles = CSS.map(
   (file) => `/* ---- ${file} ---- */\n${read(file)}`,
@@ -72,6 +74,11 @@ ${scripts}
 const targets = [
   { file: "views/commit.html", title: "Commit", surface: "unified" },
   { file: "views/git.html", title: "Git", surface: "unified" },
+  // The report gets its own page as well as a tab: the tab is for someone
+  // already working in the Git window, the entry is so the feature can be found
+  // without knowing it lives inside another one. Same component, separate
+  // document — `boot()` reads the surface and mounts only that one.
+  { file: "views/report.html", title: "Daily report", surface: "report" },
   { file: "renderer/index.html", title: "IDEA Git", surface: "unified" },
 ];
 
@@ -82,3 +89,4 @@ for (const target of targets) {
   writeFileSync(output, html, "utf8");
   process.stdout.write(`wrote ${target.file} (${(html.length / 1024).toFixed(1)} KB)\n`);
 }
+process.stdout.write("session view is built separately by tools/build-session-diff.mjs (no npm install needed for the Git views)\n");

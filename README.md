@@ -8,13 +8,14 @@
 
 | 章节 | 内容 |
 | --- | --- |
-| 界面与功能 | 两个视图、Changes 区、diff 面板、Log/Console 全部能力表 |
+| 界面与功能 | 三个视图、Changes 区、diff 面板、Log/Console 与会话修改审查能力表 |
 | 快捷键 | 绑定表，以及「焦点在哪决定谁能收到按键」 |
 | 与 IDEA 的有意差异 | 哪些地方刻意不照抄 |
-| 权限 | 6 项权限各自为什么需要 |
+| 权限 | 10 项权限各自为什么需要 |
 | 工程结构 | 源码布局、为什么必须构建、生成物为什么不能手改 |
 | 引擎设计 | 视图如何与 Git 通信、环境补齐、状态与补丁的关键取舍 |
 | 一个项目里的多个仓库 | 子模块与嵌套仓库的识别、Root 选择器与其边界 |
+| 日报 | 跨多仓汇总一天、同提交去重、90 天本地历史、工作日定时 |
 | 远端同步 | 推送被拒、分叉、冲突、以及未完成合并的出路 |
 | 认证 | 为什么插件不需要凭据，以及唯一做不到的事 |
 | 生成提交信息 | 用宿主模型起草，语言/格式/范围如何处理 |
@@ -26,12 +27,14 @@
 
 ## 界面与功能
 
-工作面板提供统一的 Git 工具窗口（包含 提交、日志、控制台 三个一级标签页）：
+工作面板提供统一的 Git 工具窗口（包含 提交、日志、总览、控制台、日报 五个一级标签页）：
 
 | 面板 / 标签页 | 对应 IDEA | 内容 |
 | --- | --- | --- |
 | **提交**（`Commit`） | Commit 工具窗口，`Alt+0` | Changes 区（Staged / Unstaged / Unversioned Files / Merge Conflicts）、选中文件的 diff、带历史的提交信息框、Amend、Sign-off、Commit、Commit and Push |
 | **日志**（`Log`） | Git 工具窗口，`Alt+9` | 分支面板、带图形与引用徽标的提交列表、changed files、commit details |
+| **日报**（`Report`） | 无直接对应（IDEA 没有日报） | 近 90 天日报列表、当天摘要与逐条提交、每个仓库的地址与提交数、设置（启用/时间/模型/作者/仓库勾选） |
+| **会话修改**（`Session changes`） | 无直接对应（IDEA 没有会话证据） | 当前会话各轮次的 Write/Edit 文件快照、统一/并排 diff、行级评论、文末变更卡片与运行中的变更浮窗；不含独立本地 Git 页面 |
 | **控制台**（`Console`） | Git 控制台 | 命令执行记录与输出，失败标红，可清空 |
 
 > `Alt+0` / `Alt+9` 是 IDEA 自己的绑定，插件**没有**注册热键（`manifest.json` 里没有
@@ -40,6 +43,26 @@
 命令面板里另有两条命令：`IDEA Git: Open as a separate window`（把两个窗口并到一个标签栏里，
 宽屏用，加载 `renderer/index.html`）与 `IDEA Git: Refresh repository`。插件在启动时激活
 （`activationEvents: onStartup`）。
+
+工作面板左侧另有一个独立的 **日报** 入口（`views/report.html`，`icon: clock`），打开就是日报本身，
+不用先进 Git 窗口再切标签。两处是同一个组件：入口那条只挂日报，Git 窗口里的 `日报` 标签页把它和
+提交／日志并排。之所以留两个面，是因为「我要看今天做了什么」和「我在提交东西，顺手看一眼」是两个场景。
+
+工作面板左侧还有独立的 **会话修改** 入口（`views/session.html`，`icon: diff`），命令面板里的
+`Git Master: Open session changes / 打开会话修改` 会聚焦当前会话的这个页签。它来自固定提交
+`c1d94a8` 的 `new-Beginner/pi-diff-view` 会话子系统：Agent 扩展只采集明确的 Write/Edit 与单文件
+替换目标，前后快照留在插件私有数据目录；回答结束后出现文末变更卡片，任务运行时输入框上方出现
+净增删浮窗。点击卡片文件会打开此页签并定位到对应 diff。这里**不包含**上游的独立本地 Git 页面；
+Git 操作仍走本插件原有的 Git / Commit 视图。
+
+> 新增 `agent.extension`、`renderer.extension`、`desktop.control` 三项权限（共 10 项）。其中
+> `desktop.control` 仅调用目录发现、`agent/getStatus` 与 `session/get` 三项只读操作；后两项
+> 用于补齐宿主公开会话状态，拒权或超时保持“未知”，不读取宿主 JSONL、review-changes、app.asar，
+> 不联网、不遥测。renderer/agent 扩展无 OS 沙箱，只加载本仓库 vendored 的固定快照。
+> 权限扩张后必须在扩展页 `··· → 加载本地插件` 重新选择插件目录并批准，普通 Reload 会静默丢权限。
+
+两个工具栏的**按钮顺序是一致的**：仓库 → 分支 → 刷新 → 拉取 → 推送 → 今日提交 → 储藏，
+之后各自接自己那一组（提交侧是暂存／移出／回滚，日志侧是 Go to HEAD 与过滤条件）。
 
 ### 功能对照表（用 IDEA 自己的说法）
 
@@ -72,6 +95,7 @@
 | `Collapse Unchanged Fragments` | diff 面板 | 长的上下文会折叠成一行可点击的条（`⋮ N 行未修改`）。只在**统一视图**里折叠，并排视图不折 |
 | 高亮差异 | diff 面板 | **词级**：行中间变化的部分被标出来，于是 `1.0.0` → `1.1.0` 只标出那一个不同的字符 |
 | 提交区状态行 | 提交 → 提交按钮上方 | 三种状态：进行中的操作（带 `Continue`/`Abort`）、冲突提示、`Nothing is staged` 警告，常规时显示「将提交 N / M 个文件」 |
+| 日报 | 工作日到点自动，或手点生成 | 见下方「日报」一节 |
 | Console 细节 | Git → Console | 每条命令带 `[hh:mm:ss]` 时间戳、右上角显示条数、独立的 Refresh、空态提示 |
 | 工具栏右侧 | 两个工具栏 | 当前仓库/工作区目录名 |
 
@@ -137,12 +161,16 @@
 | `clipboard.write` | `Copy Revision Number`、`Copy Hash` 这类复制动作 |
 | `fs.read` | 对变更文件执行 `Open File` 与 `Reveal in File Manager` |
 | `models.list` | 生成按钮上的模型选择菜单 |
-| `agent.complete` | 用宿主模型起草提交信息 |
+| `agent.complete` | 用宿主模型起草提交信息，以及生成日报 |
+| `background.service` | 常驻的日报调度器：工作日到点生成，其余时间空转 |
 
 `PluginCheck` 会把 `clipboard.write` 与 `fs.read` 报成 unused，因为它只扫 `main.js`；这两个都是从视图经面板桥调的
 （`clipboard.writeText` 在 `src/common.js`，`fs.openDefault` / `fs.reveal` 在 `src/commit-view.js`），属误报。
 
 `fs` 的读取范围声明为 `{"root":"workspace","scope":["**"]}`——只读工作区。
+
+`background.service` 需要**重新加载插件**才会真正授予：热重载与卡片上的 Reload 按钮都不会追加新权限
+（Reload 会静默丢掉新增项却报告成功）。走 `··· → 加载本地插件` 重选一次目录。
 
 **唯一一处插件写工作区的地方**是丢弃未跟踪文件（或还原未跟踪文件的 hunk）：引擎直接 `fs.rmSync` 删文件，
 视图侧会先确认。除此之外不碰工作区的文件——所有变更都经过 `git`。
@@ -151,22 +179,26 @@
 ## 工程结构
 
 ```
-main.js              Node 进程：Git 引擎 + 通道路由（约 2600 行）
+main.js              Node 进程：Git 引擎 + 通道路由（约 3570 行）
+lib/daily-report.js  日报引擎：窗口、多仓采集、去重、脱敏、90 天存储、调度（无宿主依赖）
 src/theme.css        IDEA 调色板与组件样式 ─┐
 src/layout.css       布局与响应式            ─┤
 src/common.js        桥、i18n、图标、弹出菜单 ─┤ tools/build.mjs
 src/diff.js          统一 diff 解析与渲染    ─┤ 内联进
 src/commit-view.js   提交工具窗口            ─┤
+src/report-view.js   日报：历史列表 + 明细 + 设置 ─┤
 src/git-view.js      Log + Console，以及启动 ─┘
 views/commit.html    生成物——不要手改
 views/git.html       生成物——不要手改
+views/report.html    生成物——日报的独立工作面板入口
 renderer/index.html  生成物——两个窗口并到一个标签栏
 tools/build.mjs      内联器
-tools/harness.mjs    引擎回归（真实仓库，136 条断言）
+tools/harness.mjs    引擎回归（真实仓库，222 条断言）
+tools/daily-report-regression.mjs  日报引擎回归（真实多仓 + 桩模型）
 tools/drive.mjs      不开 GUI 直接驱动引擎
 tools/smoke.mjs      用桩 bridge 渲染视图到 .smoke/
 tools/notes.mjs      决策笔记门禁（+ tools/agent-notes/ 的 vendored 校验器）
-manifest.json        清单：视图、命令、权限、engines
+manifest.json        清单：视图、命令、权限、服务、engines
 ```
 
 ### 为什么必须有构建步骤
@@ -276,6 +308,34 @@ Commit 视图因此做成 IDEA 式的**聚合显示**：先按暂存/未暂存/�
 （在那里暂存等于记录一个提交），其他都是**嵌套仓库**（父仓库不存它的任何文件）。界面上分别打 `submodule` / `nested repository` 徽标。
 
 这个选择属于**打开的那个项目**，不写进 prefs：切项目、或者把目录移走，就退回工作区自己的仓库。
+
+## 日报
+
+`日报` 标签回答的是「这一天我做了什么」，而 ⌚ 那个按钮回答的是「今天这个仓库里有什么」。
+
+一个项目常常对应**多个仓库地址**：主仓、子模块、恰好住在这里的克隆、以及并排摆着的平级仓。
+日报跨这些仓库一起汇总，并给每个仓库标出它的远端地址（push 优先，没有则取第一个 remote）——
+所以「这份工作最终进了哪个地址」在设置里和明细里都看得见。
+
+同一份提交出现在两个检出里（同一上游的两份克隆、子模块与父仓的副本）时，**只记一条**，但保留
+全部仓库名；页头会写「N 条在多仓重复」。仓库数不是工作量，重复条目更不是。
+
+| 项 | 行为 |
+| --- | --- |
+| 统计窗口 | `[上一工作日 HH:mm, 当日 HH:mm)`，默认 17:20；周一回溯到周五 17:20，周末预览也落在周五窗口 |
+| 作者 | 设置里的邮箱列表；留空则用各仓库 `git config user.email` 的并集。两者都空时包含全部作者并给一条提示 |
+| 提交排序 | 按提交者时间倒序；提交信息只取主题（第一行） |
+| 生成 | **一次**模型调用。没有提交就不调用、不落盘，只回一条「该区间内没有提交」 |
+| 历史 | 本地 JSON，`<插件数据目录>/daily-report/reports/report-YYYY-MM-DD.json`，**90 天**后自动清掉 |
+| 定时 | 常驻服务，30 秒看一次表；只在配置的那一分钟生成。休眠/关机错过就跳过，**不补发**；同日已有报告则不动 |
+| 送模型的 | 只有提交主题与仓库名。代码块、diff hunk 与五类凭据形状（Bearer、`key=value`、私钥块、`ghp_`、`sk-`）在采集时即被过滤/掩码 |
+| 不发出去的 | 远端 URL 只存本地；报告是本地文件，插件不发起任何网络请求 |
+
+超过 60000 字符的载荷会被**拒绝**（`REPORT_TOO_LARGE`）并提示排除仓库或缩短窗口，而不是悄悄截断：
+截断后的摘要看起来完整，实际不是。
+
+设置（齿轮）里可以改启用、时间、模型、作者邮箱，以及勾掉不参与统计的仓库。
+`每日定时` 需要 `background.service` 权限；新增权限只能靠**重新加载插件**授予（见「权限」）。
 
 ## 远端同步：推送被拒与合并冲突
 
@@ -426,11 +486,25 @@ Git 把**第一个空行之前的每一行**都当成标题，所以一个把正
 `.gitmodules` 的声明能推翻什么，以及一份来自「视图已经离开的仓库」的补丁会被拒绝而不是被应用。
 
 ```bash
-node tools/harness.mjs        # 实测输出：136/136 passed，全部对着真实 git
+node tools/harness.mjs        # 实测输出：222/222 passed，全部对着真实 git
 node tools/harness.mjs --keep # 保留临时仓库，便于事后翻看
 ```
 
 `PLUGIN_DIR` 可以把 harness 指向另一份检出。
+
+### 日报引擎回归
+
+`tools/daily-report-regression.mjs` 走同一条路线：造真实仓库（两个检出共享同一上游、一个独立仓、
+一个同事提交的仓），然后断言日报引擎的行为——窗口边界（闭区间右侧那一毫秒归下一份）、跨仓同提交
+折叠成一条并保留两个仓库名、远端地址逐仓解析、作者过滤、凭据掩码同时作用于送模型的载荷与落盘文件、
+空一天不调用模型、90 天淘汰、以及「只在配置的那一分钟触发、错过不补发、同日不重复」。
+
+```bash
+node tools/daily-report-regression.mjs
+```
+
+模型是桩：不发起真实扣费调用。`tools/drive.mjs` 也能驱动日报通道（`git/report-config`、
+`git/report-generate`），配合 `PIG_FAKE_COMPLETE` / `PIG_FAKE_MODELS` 用。
 
 ### 决策笔记门禁
 
@@ -443,7 +517,7 @@ node tools/notes.mjs        # 两项校验：目录/分类/相对链接 + 头块
 ```
 
 两个校验器逐字节 vendored 在 `tools/agent-notes/` 下，所以**无论机器上装没装那个 skill 都能跑**；
-它们也由 `node tools/harness.mjs` 一起断言（136 条里有 2 条来自这里）。
+它们也由 `node tools/harness.mjs` 一起断言（222 条里有 2 条来自这里）。
 本机 Node 26 能直接执行 `.ts`，不需要 tsx 或任何 flag。
 
 ### 不开 GUI 驱动引擎
@@ -509,6 +583,9 @@ node tools/build.mjs && node tools/smoke.mjs commit zh-CN
 - **执行边界**：单条命令 25 秒后被杀；Console 只留最近 200 条、日志一次最多取 500 条、错误详情与 Console 的每条输出都截到 4000 字符——这些截断是静默的。唯一会**报出来**的是 stdout 超过 8 MiB：那条命令被杀死并报 `Git output exceeded the size limit.`（stderr 超限则是静默停止收集）。
 - **宿主超时**：任何一次面板调用超过 30 秒，都会以宿主侧超时的形式失败；引擎的 25 秒上限就是为了让失败先发生在 Git 这一侧。
 - **测试不覆盖真实宿主**：harness 与 smoke 用的是桩，`PluginCheck` 只看 `main.js`（于是视图经桥调用的权限被误报为 unused）。
+- **日报只落本地，不发送**：没有邮件／IM 投递通道。宿主的清单校验会拒绝 `setting.secret`，凭据只能明文落盘；发信还要新增 `net.*` 权限并改写「不发起网络请求」的声明——所以报告结构里留了 `delivery.status`（当前只有 `stored`），接投递时加一个通道即可，模型不用动。
+- **日报不含未提交改动与会话记录**：那需要 `session.read` / `desktop.control`，与 Git 插件的权限面不符。日报只讲提交。
+- **日报的窗口是「工作日到点」而不是「自然日」**：手工预览某个周末日期看到的是周五窗口；要按自然日聚合，用 ⌚ 那个「今日提交」。
 
 ## 记忆与决策笔记
 

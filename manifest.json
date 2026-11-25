@@ -2,30 +2,67 @@
   "schemaVersion": 1,
   "id": "io.github.corner19.git-master",
   "name": "Git Master",
-  "version": "0.4.2",
-  "description": "An IntelliJ-IDEA-style Git & multi-repo tool window for PI-Desktop: multi-repo batch pull/commit/push, staged/unstaged change lists, hunk-level stage & revert, branch switcher, graph log and stashes. 全能 Git 工具窗口：多仓库一键拉取/提交/推送、暂存/未暂存分组、代码块暂存与还原、分支切换、图形化日志与储藏。",
+  "version": "0.6.0",
+  "description": "IntelliJ-IDEA-style Git tool window plus session-scoped change review for PI-Desktop: multi-repo pull/commit/push, staged/unstaged change lists, hunk-level stage and revert, branch graph, stashes and daily reports; Write/Edit snapshots, end-of-reply change cards and a running-change indicator. 全能 Git 工具窗口与会话修改审查：多仓库拉取/提交/推送、暂存分组、代码块操作、分支日志、储藏、日报，以及按会话轮次保存的文件修改、文末卡片与运行浮窗。",
   "author": "Corner19",
   "homepage": "https://github.com/Corner19/git-master",
   "repository": "https://github.com/Corner19/git-master",
   "i18n": {
     "en": {
       "name": "Git Master",
-      "description": "An IntelliJ-IDEA-style Git & multi-repo tool window for PI-Desktop: multi-repo batch pull/commit/push, staged/unstaged change lists, hunk-level stage & revert, commit, branch switcher, graph log and stashes.",
-      "safetyNotes": "Reads workspace files through the host fs APIs (Open File / Reveal only); discarding an untracked file deletes it (with a confirmation dialog) — every other write goes through Git commands. Commit-message generation calls the host model with your own model setup and quota (host rate limit 8/min); the plugin holds no API keys, makes no network requests, no telemetry. HTTPS credentials come from your own Git credential helper; keys that live only in ssh-agent do not work — use an HTTPS remote or a keychain-backed key."
+      "description": "IntelliJ-IDEA-style Git tooling plus session-scoped change review: multi-repo batch operations, hunk-level staging, graph log, stashes, daily reports, Write/Edit snapshots, reply cards and a running-change indicator.",
+      "safetyNotes": "Trusted local plugin: renderer and agent extensions are unsandboxed. Session review captures only explicit Write/Edit and single-file replacement targets, stores before/after snapshots in the plugin's private data directory, and uses desktop.control only for directory discovery plus the read-only agent/getStatus and session/get operations. No host JSONL, review-changes, app.asar reads, network egress, telemetry or remote Git. Git writes go through Git commands; discarding an untracked file deletes it after confirmation. Commit messages and daily-report summaries use your own model configuration and quota. HTTPS credentials come from your Git helper; ssh-agent-only keys are unavailable."
     },
     "zh-CN": {
       "name": "全能 Git",
-      "description": "PI-Desktop 的全能 Git 工具窗口：支持多仓库一键拉取/提交/推送、暂存/未暂存分组、代码块暂存与还原、提交、分支切换、图形化日志与储藏。",
-      "safetyNotes": "只读工作区文件（Open File / Reveal 走宿主 fs 接口）；丢弃未跟踪文件时会直接删除该文件（操作前有确认框），其余写操作一律走 Git 命令。生成提交信息调用宿主模型，用的是你自己的模型配置与额度（宿主限流 8 次/分），插件不持有任何 API Key，不发起网络请求，无遥测。HTTPS 凭据走你自己的 Git 凭据助手；只活在 ssh-agent 里的密钥用不了，请用 HTTPS 远端或钥匙串密钥。"
+      "description": "IntelliJ IDEA 风格的 Git 工具窗口与会话修改审查：多仓库批量操作、代码块暂存、图形日志、储藏、日报，以及 Write/Edit 快照、文末变更卡片与运行浮窗。",
+      "safetyNotes": "受信任的非沙箱本地插件：renderer 与 agent 扩展无 OS 沙箱。会话审查只采集明确的 Write/Edit 与单文件替换目标，前后快照保存在插件私有数据目录；desktop.control 仅用于目录发现及 agent/getStatus、session/get 两项只读操作。不读取宿主 JSONL、review-changes 或 app.asar，不联网、无遥测、无远程 Git。Git 写操作一律走 Git 命令；丢弃未跟踪文件会先确认再删除。提交信息与日报总结使用你自己的模型配置与额度。HTTPS 凭据走你的 Git 凭据助手；只活在 ssh-agent 里的密钥不可用。"
     }
   },
   "categories": [
     "developer-tools",
     "productivity"
   ],
-  "changelog": "Release 0.3.1: Unify Commit and Git into one Git work-panel entry; show Commit and Log together with a draggable splitter, with optional Commit, Log and Console modes. 提交与 Git 合并为一个 Git 工作面板入口，支持提交与日志上下分屏、拖动分隔条以及单独查看提交、日志和控制台。",
-  "safetyNotes": "只读工作区文件（Open File / Reveal 走宿主 fs 接口）；丢弃未跟踪文件时会直接删除该文件（操作前有确认框），其余写操作一律走 Git 命令。生成提交信息调用宿主模型，用的是你自己的模型配置与额度（宿主限流 8 次/分），插件不持有任何 API Key，不发起网络请求，无遥测。HTTPS 凭据走你自己的 Git 凭据助手；只活在 ssh-agent 里的密钥用不了，请用 HTTPS 远端或钥匙串密钥。",
+  "changelog": "Release 0.6.0: Session changes (会话修改) — captures explicit Write/Edit and single-file replacement snapshots per session turn, shows a running-change indicator above the composer and end-of-reply change cards, and adds a session review view with unified/split diffs, comments and bounded history recovery. The separate local Git page from the upstream contributor is not included; Git operations remain in the existing Git/Commit views. High-risk renderer/agent extensions and desktop.control are newly required and must be approved by reloading the plugin from the Extensions page. 0.6.0 新增会话修改：按会话轮次采集明确的 Write/Edit 与单文件替换快照，在输入框上方显示运行变更浮窗、在回答末尾显示变更卡片，并提供统一/并排差异、评论与有界历史恢复的审查视图。不引入上游的独立本地 Git 页面；Git 操作仍使用原有 Git/Commit 视图。新增高风险 renderer/agent 扩展与 desktop.control 权限，需要在扩展页重新加载插件并批准。 Release 0.5.0: Daily report (日报) — collects the day's commits across every repository in the project (root, submodules, nested and sibling clones), collapses the same commit seen in several checkouts into one entry while keeping every address, summarizes once with your chosen model, and keeps 90 days of local history. Optional weekday 17:20 generation runs as a resident service; a missed minute is skipped, never caught up. 0.5.0 新增日报：跨项目内全部仓库（主仓、子模块、嵌套与平级克隆）汇总当天提交，同一提交在多仓出现只记一条并保留全部地址，用你选定的模型一次性提炼，本地保留 90 天；可选工作日 17:20 常驻服务自动生成，错过的时间点直接跳过、不补发。",
+  "safetyNotes": "受信任的非沙箱本地插件：renderer 与 agent 扩展无 OS 沙箱。会话审查只采集明确的 Write/Edit 与单文件替换目标，前后快照保存在插件私有数据目录；desktop.control 仅用于目录发现及 agent/getStatus、session/get 两项只读操作。不读取宿主 JSONL、review-changes 或 app.asar，不联网、无遥测、无远程 Git。Git 写操作一律走 Git 命令；丢弃未跟踪文件会先确认再删除。提交信息与日报总结使用你自己的模型配置与额度。HTTPS 凭据走你的 Git 凭据助手；只活在 ssh-agent 里的密钥不可用。",
   "main": "main.js",
+  "renderer": "lib/session-diff/renderer.mjs",
+  "rendererActions": [
+    "plugin.call",
+    "composer.readDraft"
+  ],
+  "rendererCallMethods": [
+    "reviewSurface",
+    "sessionState",
+    "sessionEvidence",
+    "sessionContext",
+    "rendererReport",
+    "jobStart",
+    "jobPoll",
+    "bootstrap",
+    "review",
+    "reviewFiles",
+    "file",
+    "action",
+    "batchAction",
+    "comments",
+    "saveComment",
+    "deleteComment",
+    "feedback",
+    "copyPatch",
+    "copyPath",
+    "settings",
+    "clearHistory",
+    "card",
+    "replyCards",
+    "turnSummary",
+    "runningChanges",
+    "selectTurn",
+    "readTurnSelection",
+    "activeReviewSession",
+    "openSystemFile",
+    "captureMaintenance"
+  ],
   "ui": {
     "panel": "renderer/index.html",
     "title": {
@@ -43,7 +80,28 @@
         },
         "icon": "branch",
         "entry": "views/git.html",
+        "entry": "views/git.html",
         "order": 33
+      },
+      {
+        "id": "report",
+        "title": {
+          "en": "Daily report",
+          "zh-CN": "日报"
+        },
+        "icon": "clock",
+        "entry": "views/report.html",
+        "order": 34
+      },
+      {
+        "id": "session",
+        "title": {
+          "en": "Session changes",
+          "zh-CN": "会话修改"
+        },
+        "icon": "diff",
+        "entry": "views/session.html",
+        "order": 35
       }
     ],
     "commands": [
@@ -66,6 +124,40 @@
           "refresh",
           "reload"
         ]
+      },
+      {
+        "id": "git-master.session-review",
+        "title": "Git Master: Open session changes / 打开会话修改",
+        "keywords": [
+          "session",
+          "diff",
+          "review",
+          "会话",
+          "修改"
+        ]
+      }
+    ],
+    "services": [
+      {
+        "id": "daily-report",
+        "label": "Daily report scheduler"
+      }
+    ],
+    "agentExtensions": [
+      "lib/session-diff/agent.mjs"
+    ],
+    "settings": [
+      {
+        "key": "layout",
+        "type": "string",
+        "default": "unified",
+        "title": "Session diff layout (unified / split)"
+      },
+      {
+        "key": "wordWrap",
+        "type": "boolean",
+        "default": false,
+        "title": "Wrap long session diff lines"
       }
     ]
   },
@@ -75,7 +167,11 @@
     "clipboard.write",
     "fs.read",
     "models.list",
-    "agent.complete"
+    "agent.complete",
+    "background.service",
+    "agent.extension",
+    "renderer.extension",
+    "desktop.control"
   ],
   "fs": {
     "read": {
@@ -86,11 +182,12 @@
     }
   },
   "engines": {
-    "piDesktop": ">=0.8.0"
+    "piDesktop": ">=0.17.0"
   },
   "activationEvents": [
     "onStartup",
     "onCommand:git-master.open",
-    "onCommand:git-master.refresh"
+    "onCommand:git-master.refresh",
+    "onCommand:git-master.session-review"
   ]
 }

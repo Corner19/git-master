@@ -417,19 +417,9 @@
           paintToolbar();
         }
       }));
-      toolbar.append(syncButton("push", t("push"), "push", async () => {
-        if (state.syncing) return;
-        // Note: Git 视图的 Push 同样走多仓对话框，单仓时对话框内只有一行 — 见 .agents/notes/implemented/architecture/2026-09-12-multi-repo-push.md
-        state.syncing = "push";
-        paintToolbar();
-        try {
-          await PIG.openPushDialog({ onPushed: async () => { await refresh(); } });
-          await refresh();
-        } finally {
-          state.syncing = null;
-          paintToolbar();
-        }
-      }));
+      // Order matches the Commit toolbar exactly — refresh, pull, push, then the
+      // snapshot actions — so the two toolbars read as one bar with different
+      // endings rather than two bars that happen to share buttons.
       toolbar.append(syncButton("fetch", t("pull"), "pull", async () => {
         if (state.syncing) return;
         state.syncing = "pull";
@@ -450,6 +440,20 @@
           paintToolbar();
         }
       }));
+      toolbar.append(syncButton("push", t("push"), "push", async () => {
+        if (state.syncing) return;
+        // Note: Git 视图的 Push 同样走多仓对话框，单仓时对话框内只有一行 — 见 .agents/notes/implemented/architecture/2026-09-12-multi-repo-push.md
+        state.syncing = "push";
+        paintToolbar();
+        try {
+          await PIG.openPushDialog({ onPushed: async () => { await refresh(); } });
+          await refresh();
+        } finally {
+          state.syncing = null;
+          paintToolbar();
+        }
+      }));
+      toolbar.append(iconButton("clock", t("todayCommits"), () => PIG.openTodayCommits(), { disabled: syncDisabled }));
       toolbar.append(iconButton("stash", t("stashChanges"), async () => {
         if (state.syncing) return;
         const result = await PIG.stashChanges();
@@ -457,7 +461,7 @@
         PIG.reportSync(result, t("stash"));
         await refresh();
       }, { disabled: syncDisabled || !state.repo || !["staged", "unstaged", "untracked"].some((key) => state.repo[key]?.length) }));
-      toolbar.append(iconButton("clock", t("todayCommits"), () => PIG.openTodayCommits(), { disabled: syncDisabled }));
+      toolbar.append(h("div", { class: "toolbar-separator" }));
       toolbar.append(iconButton("arrowUp", t("goToHead"), (event) => {
         const head = state.repo?.branch?.oid;
         if (!head) return;
@@ -561,7 +565,34 @@
       });
     }
 
+    /*
+     * The three panes below are repainted from several places (toolbar filters,
+     * collapse toggles, selection, the refresh heartbeat), and every painter
+     * clears and rebuilds its host. On an idle panel the heartbeat repeated
+     * that every few seconds for a list that had not changed — hundreds of rows
+     * thrown away and rebuilt under the pointer. Each painter therefore keeps
+     * the key of what it last drew and returns when the next one is identical.
+     * The key carries a minute counter because the list and the stash rows
+     * print relative timestamps: those still tick, just once a minute instead
+     * of every heartbeat.
+     */
+    let paintedListKey = null;
+    let paintedBranchesKey = null;
+    let paintedDetailKey = null;
+
+    function minuteBucket() {
+      return Math.floor(Date.now() / 60_000);
+    }
+
     function paintList() {
+      const key = JSON.stringify([
+        state.error, state.repoPath, state.showGraph, state.selection,
+        state.repo?.branch?.oid ?? null, state.repo?.user ?? null,
+        visibleCommits().map((commit) => commit.hash),
+        minuteBucket(),
+      ]);
+      if (key === paintedListKey) return;
+      paintedListKey = key;
       PIG.clear(listHost);
       // A workspace that is not a repository (or a missing git binary) has to
       // say so: an empty list reads as "this tool is broken" instead of
@@ -633,6 +664,12 @@
     }
 
     function paintBranches() {
+      const key = JSON.stringify([
+        state.showBranches, state.repo?.branch ?? null, state.branches, state.tags,
+        state.remotes, state.stashes, state.collapsed, minuteBucket(),
+      ]);
+      if (key === paintedBranchesKey) return;
+      paintedBranchesKey = key;
       PIG.clear(branchesHost);
       if (!state.showBranches) return;
       paintHeadRow();
@@ -1130,6 +1167,9 @@
     }
 
     function paintDetail() {
+      const key = JSON.stringify([state.selection, state.changedFiles, state.details]);
+      if (key === paintedDetailKey) return;
+      paintedDetailKey = key;
       PIG.clear(changedHost);
       PIG.clear(detailsHost);
       if (!state.selection) {
@@ -1577,16 +1617,20 @@
     const splitter = h("div", { class: "splitter-y" });
     const logSurface = h("div", { class: "column grow", style: "flex: 1 1 0px; min-height: 80px; overflow: hidden;" });
     const consoleSurface = h("div", { class: "column grow hidden" });
-    mainContainer.append(commitSurface, splitter, logSurface, consoleSurface);
+    const reportSurface = h("div", { class: "column grow hidden" });
+    mainContainer.append(commitSurface, splitter, logSurface, consoleSurface, reportSurface);
 
     const commitView = PIG.commitView.mount(commitSurface);
     const logView = mountLog(logSurface);
     const consoleView = mountConsole(consoleSurface);
+    // Mounted once, painted on demand: the report surface owns its own history
+    // list, so rebuilding it on every tab switch would throw away the selection.
+    const reportView = PIG.reportView ? PIG.reportView.mount(reportSurface) : null;
 
     let mode = "split";
     try {
       const saved = localStorage.getItem("pig.unified_mode");
-      if (saved && (saved === "split" || saved === "commit" || saved === "log" || saved === "console")) {
+      if (saved && (saved === "split" || saved === "commit" || saved === "log" || saved === "console" || saved === "report")) {
         mode = saved;
       }
     } catch {}
@@ -1618,12 +1662,19 @@
         localStorage.setItem("pig.unified_mode", mode);
       } catch {}
 
+      // Every surface is reset before the one the mode asks for is shown: a
+      // hidden-but-visible-in-layout pane is how two tabs end up stacked.
+      commitSurface.classList.add("hidden");
+      logSurface.classList.add("hidden");
+      consoleSurface.classList.add("hidden");
+      reportSurface.classList.add("hidden");
+      splitter.classList.add("hidden");
+
       if (mode === "split") {
         commitSurface.classList.remove("hidden");
         commitSurface.style.display = "";
         splitter.classList.remove("hidden");
         logSurface.classList.remove("hidden");
-        consoleSurface.classList.add("hidden");
         const savedRatio = Math.max(15, Math.min(85, Number(localStorage.getItem("pig.commit_split_ratio")) || 50));
         commitSurface.style.flex = "0 0 auto";
         commitSurface.style.maxHeight = "calc(100% - 80px)";
@@ -1634,22 +1685,16 @@
         commitSurface.classList.remove("hidden");
         commitSurface.style.height = "100%";
         commitSurface.style.maxHeight = "none";
-        splitter.classList.add("hidden");
-        logSurface.classList.add("hidden");
-        consoleSurface.classList.add("hidden");
         commitView?.refresh?.();
       } else if (mode === "log") {
-        commitSurface.classList.add("hidden");
-        splitter.classList.add("hidden");
         logSurface.classList.remove("hidden");
-        consoleSurface.classList.add("hidden");
         logView?.refresh?.();
       } else if (mode === "console") {
-        commitSurface.classList.add("hidden");
-        splitter.classList.add("hidden");
-        logSurface.classList.add("hidden");
         consoleSurface.classList.remove("hidden");
         consoleView?.refresh?.();
+      } else if (mode === "report") {
+        reportSurface.classList.remove("hidden");
+        reportView?.refresh?.();
       }
       paintTabs();
     }
@@ -1661,6 +1706,7 @@
         { id: "log", label: t("log") },
         { id: "split", label: t("combined") },
         { id: "console", label: t("console") },
+        { id: "report", label: t("report") },
       ]) {
         tabs.append(h("button", {
           type: "button",
@@ -1674,7 +1720,16 @@
 
     applyMode(mode);
     root.append(tabs, mainContainer);
-    window.addEventListener("pig:appearance", paintTabs);
+    // A theme or locale switch rewrites every label the panes remember a key
+    // for, so it clears them first — otherwise the guard would keep the
+    // previous language on screen.
+    window.addEventListener("pig:appearance", () => {
+      paintedListKey = null;
+      paintedBranchesKey = null;
+      paintedDetailKey = null;
+      paintTabs();
+      paintAll();
+    });
     return {
       refresh: () => {
         if (mode === "split") {
@@ -1686,6 +1741,8 @@
           logView?.refresh?.();
         } else if (mode === "console") {
           consoleView?.refresh?.();
+        } else if (mode === "report") {
+          reportView?.refresh?.();
         }
       },
       setMode: applyMode,
@@ -1703,6 +1760,13 @@
     const surface = window.__PI_IDEA_GIT_SURFACE__ ?? "unified";
     if (surface === "commit") {
       PIG.commitView.mount(root);
+      return;
+    }
+    // The report entry is a page of its own, so it mounts only the report: the
+    // Commit and Log surfaces would otherwise do a directory walk and a `git log`
+    // nobody asked for, on a tab the user never opens.
+    if (surface === "report") {
+      PIG.reportView?.mount(root);
       return;
     }
     mountUnified(root);

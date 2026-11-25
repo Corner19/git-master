@@ -1,0 +1,509 @@
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { Action, ActionResult, Bootstrap, CaptureMaintenanceInspection, DiffHunk, ReviewActionRequest, ReviewFile, ReviewFilesPage, ReviewRequest, ReviewSummary, Scope, UiTransport } from '../core/contracts';
+import { isVisibleReviewFile } from '../core/review-file-policy';
+import { requiresSystemOpenConfirmation } from '../core/system-open-policy';
+import { DiffRows } from './DiffRows';
+import FilePath from './FilePath';
+import FileIcon from './FileIcon';
+import ReviewIcon from './ReviewIcon';
+import ReviewFilePreview from './ReviewFilePreview';
+import ScopePicker from './ScopePicker';
+import { messages, kindLabel } from './i18n';
+import { ensureBounded, invalidateSessionReads } from './transport';
+import { useDiffDetail, prefetchDiffDetail, prepareDiffDetail } from './useDiffDetail';
+import { captureScrollAnchor, restoreScrollAnchor, reconcileHunkViews, reviewFileVersion, type HunkView, type ScrollAnchor } from './live-diff';
+import './review.css';
+
+export interface ReviewAppProps { transport: UiTransport; initialRequest?: Partial<ReviewRequest>; initialFileId?: string; autoSelectFile?: boolean; navigationKey?: string; active?: boolean; onClose?: () => void; locale?: string; base?: 'light' | 'dark' }
+type Confirmation = { kind: 'action'; file: ReviewFile; action: Action; hunk?: DiffHunk; review: ReviewSummary } | { kind: 'batch'; files: ReviewFile[]; action: Action; review: ReviewSummary } | { kind: 'history' } | { kind: 'systemOpen'; file: ReviewFile; review: ReviewSummary; scope: string } | { kind: 'captureMaintenance'; inspection: CaptureMaintenanceInspection; scope: string };
+const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+function Modal({ title, children, onClose, busy }: { title: string; children: React.ReactNode; onClose: () => void; busy: boolean }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => { ref.current?.showModal(); return () => ref.current?.close(); }, []);
+  return <dialog className="dv-dialog" ref={ref} aria-label={title} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}>
+    <h2>{title}</h2>{children}
+  </dialog>;
+}
+export function ReviewApp({ transport: source, initialRequest = {}, initialFileId, autoSelectFile = true, navigationKey, active: panelActive = true, onClose, locale: hostLocale, base: hostBase }: ReviewAppProps) {
+  const transport = useMemo(() => ensureBounded(source), [source]);
+  const [boot, setBoot] = useState<Bootstrap | null>(null);
+  const [bootError, setBootError] = useState('');
+  const [bootTick, setBootTick] = useState(0);
+  const [locale, setLocale] = useState(hostLocale ?? 'zh-CN');
+  const [base, setBase] = useState<'light' | 'dark'>(hostBase ?? 'light');
+  const t = messages(locale);
+  const [layout, setLayout] = useState<'unified' | 'split'>('unified');
+  const [wrap, setWrap] = useState(true);
+  const settingsVersion = useRef({ layout: 0, wordWrap: 0 });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [fileCollapsed, setFileCollapsed] = useState(false);
+  const [expandedFiles, setExpandedFiles] = useState<{ scope: string; ids: Set<string>; multiple?: boolean }>({ scope: '', ids: new Set() });
+  const appRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const closeMenus = (event: PointerEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && event.key !== 'Escape') return;
+      appRef.current?.querySelectorAll<HTMLDetailsElement>('.dv-menu[open]').forEach(menu => {
+        if (event instanceof KeyboardEvent || !menu.contains(event.target as Node)) menu.open = false;
+      });
+    };
+    document.addEventListener('pointerdown', closeMenus); document.addEventListener('keydown', closeMenus);
+    return () => { document.removeEventListener('pointerdown', closeMenus); document.removeEventListener('keydown', closeMenus); };
+  }, []);
+  const [request, setRequest] = useState<ReviewRequest>({ scope: 'lastTurn', ...initialRequest });
+  // Only an explicit latest-mode filter may constrain the automatic session view.
+  const latestRoot = useRef(initialRequest.scope === 'lastTurn' ? initialRequest.root : undefined);
+  const [refDraft, setRefDraft] = useState(initialRequest.ref ?? '');
+  const [review, setReview] = useState<ReviewSummary | null>(null);
+  const [reviewError, setReviewError] = useState('');
+  const [loadingReview, setLoadingReview] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<{ scope: string; state: 'ready' | 'pending' | 'unavailable' }>();
+  const syncWait = useRef<{ scope: string; at: number }>();
+  const retrySync = useRef(false);
+  const retryReview = () => { retrySync.current = true; syncWait.current = undefined; setRefreshTick(value => value + 1); };
+  const [selected, setSelected] = useState('');
+  const [query, setQuery] = useState('');
+  const [context, setContext] = useState(3);
+  const [detailTick, setDetailTick] = useState(0);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [openingSystemFile, setOpeningSystemFile] = useState(false);
+  const systemOpenPending = useRef(false);
+  const [status, setStatus] = useState('');
+  const statusTimer = useRef<ReturnType<typeof setTimeout>>();
+  const showStatus = (message: string) => {
+    if (statusTimer.current) clearTimeout(statusTimer.current);
+    setStatus(message);
+    statusTimer.current = setTimeout(() => { statusTimer.current = undefined; setStatus(''); }, 3000);
+  };
+  useEffect(() => () => { if (statusTimer.current) clearTimeout(statusTimer.current); }, []);
+  const [batchResults, setBatchResults] = useState<{ path: string; ok: boolean; message: string }[]>([]);
+  const [leaseInspection, setLeaseInspection] = useState<CaptureMaintenanceInspection | null>(null);
+  const inspectLegacyLeases = () => perform(async () => {
+    if (!review?.root) throw new Error('当前审查项目根目录未知。');
+    const result = await transport.invoke<CaptureMaintenanceInspection>('captureMaintenance', { action: 'inspect', root: review.root });
+    setLeaseInspection(result);
+  });
+  const retireLegacyLeases = () => {
+    if (leaseInspection?.count && leaseInspection.root === review?.root) setConfirmation({ kind: 'captureMaintenance', inspection: leaseInspection, scope: scopeKey });
+  };
+  useEffect(() => { if (!panelActive) setConfirmation(null); }, [panelActive]);
+  const live = useRef(true);
+  const sessionKey = initialRequest.sessionId ?? request.sessionId;
+  const scopeKey = `${request.scope}|${request.root}|${request.ref}|${request.sessionId}|${request.runId}`;
+  const reviewSync = syncStatus?.scope === scopeKey ? syncStatus.state : 'ready';
+  const scopeRef = useRef(scopeKey); scopeRef.current = scopeKey;
+  useEffect(() => { setLeaseInspection(null); setConfirmation(value => (value?.kind === 'systemOpen' || value?.kind === 'captureMaintenance') && value.scope !== scopeKey ? null : value); }, [scopeKey]);
+  const extraExpanded = expandedFiles.scope === scopeKey ? expandedFiles.ids : new Set<string>();
+  useEffect(() => { setExpandedFiles({ scope: scopeKey, ids: new Set() }); }, [scopeKey, navigationKey]);
+  const diffPane = useRef<HTMLDivElement>(null);
+  const reviewPending = useRef<symbol>(), loadedScope = useRef('');
+  const historyRevision = useRef('');
+  const workspaceRef = useRef<HTMLDivElement>(null), continuationRef = useRef<HTMLDivElement>(null);
+  const fileCollapseAnchor = useRef<{ selected: string; top: number }>();
+  useLayoutEffect(() => {
+    const anchor = fileCollapseAnchor.current;
+    fileCollapseAnchor.current = undefined;
+    const viewport = workspaceRef.current, row = appRef.current?.querySelector<HTMLElement>('.dv-file[aria-current="true"]')?.closest<HTMLElement>('.dv-file-row');
+    if (anchor && fileCollapsed && anchor.selected === selected && viewport && row) {
+      // Removing a long body can clamp/anchor the browser to an unrelated trailing file.
+      // Restore the current title's viewport position after the new file height is committed.
+      viewport.scrollTop += row.getBoundingClientRect().top - viewport.getBoundingClientRect().top - anchor.top;
+    }
+  }, [fileCollapsed, selected]);
+  const matchingReview = review && review.scope === request.scope && (!request.root || review.root === request.root) && review.sessionId === request.sessionId && (request.scope !== 'turn' || review.runId === request.runId) ? review : null;
+  const validReview = matchingReview?.files.some(file => file.id === selected) ? matchingReview : null;
+  useEffect(() => { setExpandedFiles({ scope: scopeKey, ids: new Set() }); }, [matchingReview?.runId]);
+  const selectedFile = matchingReview?.files.find(file => file.id === selected);
+  const detailVersion = selectedFile ? reviewFileVersion(selectedFile) : undefined;
+  const { detail, loading: loadingDetail, loadingMore, error: detailError, loadMore } = useDiffDetail(transport, validReview?.id, selected, context, detailTick, `${scopeKey}|${matchingReview?.runId ?? ''}`, detailVersion);
+  const displayed = useRef({ selected, context, detailTick, detail, review: matchingReview });
+  displayed.current = { selected, context, detailTick, detail, review: matchingReview };
+  const scrollAnchor = useRef<ScrollAnchor>();
+  useLayoutEffect(() => {
+    if (scrollAnchor.current && workspaceRef.current) restoreScrollAnchor(workspaceRef.current, scrollAnchor.current);
+    scrollAnchor.current = undefined;
+  }, [review, detail]);
+  const hunkState = useRef<{ identity: string; views: HunkView[]; serial: number }>({ identity: '', views: [], serial: 0 });
+  const hunkIdentity = `${scopeKey}|${selected}|${context}`;
+  const viewHunks = useMemo(() => {
+    const state = hunkState.current;
+    const previous = state.identity === hunkIdentity ? state.views : [];
+    const views = reconcileHunkViews(previous, detail?.hunks ?? [], () => `hunk-view-${state.serial++}`);
+    state.identity = hunkIdentity; state.views = views; return views;
+  }, [detail?.hunks, hunkIdentity]);
+  useEffect(() => {
+    const target = continuationRef.current;
+    if (!target || !detail || detail.nextOffset == null || loadingDetail || loadingMore || detailError || fileCollapsed || viewHunks.every(view => collapsed.has(view.key))) return;
+    const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) loadMore(); }, { root: workspaceRef.current, rootMargin: '120px 0px' });
+    observer.observe(target); return () => observer.disconnect();
+  }, [detail, loadingDetail, loadingMore, detailError, fileCollapsed, collapsed, viewHunks, loadMore]);
+  useEffect(() => {
+    if (detail && initialRequest.runId && (!initialFileId || selected === initialFileId)) void transport.invoke('rendererReport', { stage: 'view-targeted' }).catch(() => {});
+  }, [transport, detail?.file.id, initialRequest.runId]);
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+  useEffect(() => {
+    if (!panelActive) return;
+    if (!validReview?.id || !review?.files.length) return;
+    const reviewId = validReview.id;
+    const index = review.files.findIndex(file => file.id === selected);
+    const candidates = review.files.slice(index + 1, index + 3).filter(f => f.kind === 'text');
+    const timer = setTimeout(() => {
+      // At most one speculative request; clicks share the pending page instead of queuing duplicates.
+      if (!loadingDetail && candidates[0]) prefetchDiffDetail(transport, reviewId, candidates[0].id, context, detailTick);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [transport, validReview?.id, review, selected, context, detailTick, loadingDetail, panelActive]);
+  useEffect(() => { if (hostLocale) setLocale(hostLocale); }, [hostLocale]);
+  useEffect(() => { if (hostBase) setBase(hostBase); }, [hostBase]);
+  const previousNavigation = useRef(navigationKey);
+  useEffect(() => {
+    if (!navigationKey) return;
+    const changedNavigation = previousNavigation.current !== navigationKey;
+    previousNavigation.current = navigationKey;
+    const next: ReviewRequest = { ...initialRequest, scope: initialRequest.scope ?? 'turn' };
+    const sameReview = review?.scope === next.scope && (!next.root || review?.root === next.root) && review?.sessionId === next.sessionId && (next.scope !== 'turn' || review?.runId === next.runId);
+    const target = initialFileId ?? (sameReview && autoSelectFile ? review?.files[0]?.id : undefined) ?? '';
+    setRequest(next); setSelected(target); setFileCollapsed(false); setQuery('');
+    setCollapsed(new Set()); setConfirmation(null); setError('');
+    // Only refresh the bounded file list when the target is outside it or a prior load is still pending.
+    if ((sameReview && target && !review?.files.some(file => file.id === target)) || (changedNavigation && (!review || loadingReview))) setRefreshTick(value => value + 1);
+  }, [navigationKey]);
+  useEffect(() => {
+    if (!panelActive || !navigationKey || !selected) return;
+    appRef.current?.querySelector<HTMLElement>('.dv-file[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [navigationKey, selected]);
+  useEffect(() => {
+    if (panelActive && sessionKey) invalidateSessionReads(transport, sessionKey);
+  }, [transport, sessionKey, panelActive]);
+  const bootLoadedTick = useRef(-1);
+  useEffect(() => {
+    if (!panelActive || (boot && bootLoadedTick.current === bootTick)) return;
+    let active = true; setBootError('');
+    const load = () => {
+      const version = { ...settingsVersion.current };
+      return transport.invoke<Bootstrap>('bootstrap', { sessionId: initialRequest.sessionId }).then(data => {
+      if (!active) return;
+      setBoot(data);
+      bootLoadedTick.current = bootTick;
+      if (version.layout === settingsVersion.current.layout) setLayout(data.settings.layout);
+      if (version.wordWrap === settingsVersion.current.wordWrap) setWrap(data.settings.wordWrap);
+      if (!hostLocale) setLocale(data.locale); if (!hostBase) setBase(data.base);
+      if (bootTick > 0) setRefreshTick(value => value + 1);
+      setRequest(previous => {
+        if (previous.scope === 'lastTurn') return previous;
+        if (previous.root) return previous;
+        const run = data.runs.find(item => item.id === previous.runId) ?? data.runs.find(item => item.sessionId === previous.sessionId) ?? data.runs[0];
+        const root = previous.scope === 'turn' ? run?.root : data.repositories[0]?.root;
+        return { ...previous, root, ...(previous.scope === 'turn' && run ? { sessionId: previous.sessionId ?? run.sessionId, runId: previous.runId ?? run.id } : {}) };
+      });
+    }).catch(err => { if (active) setBootError(errorText(err)); });
+    };
+    // An exact task/root is already known: paint its diff before loading optional history/settings.
+    const timer = bootTick === 0 && initialRequest.runId && initialRequest.root ? setTimeout(load, 180) : undefined;
+    if (!timer) void load();
+    return () => { active = false; if (timer) clearTimeout(timer); };
+  }, [transport, bootTick, sessionKey, panelActive]);
+  useEffect(() => {
+    if (!panelActive) return;
+    if (!boot && !request.root && !request.sessionId && !request.runId) return;
+    let active = true;
+    const changedScope = loadedScope.current !== scopeKey;
+    loadedScope.current = scopeKey;
+    setReviewError('');
+    if (changedScope) { setReview(null); setConfirmation(null); setCollapsed(new Set()); }
+    if (!request.root && !request.sessionId && !request.runId) { setLoadingReview(false); return; }
+    if ((request.scope === 'commit' || request.scope === 'branch') && !request.ref?.trim()) { setLoadingReview(false); setReviewError(t.emptyRef); return; }
+    // Background updates never clear existing content or disable its read-only controls.
+    const pending = Symbol(); reviewPending.current = pending; setLoadingReview(changedScope || !matchingReview);
+    const restartSync = retrySync.current; retrySync.current = false;
+    transport.invoke<ReviewSummary>('review', { ...request, retrySync: restartSync || undefined, focusFileId: request.scope === 'turn' && request.runId === initialRequest.runId ? initialFileId : undefined }).then(async response => {
+      if (!active) return;
+      if (response.scope !== request.scope || response.sessionId !== request.sessionId || (request.scope === 'turn' && response.runId !== request.runId) || (request.root && response.root !== request.root)) throw new Error('审查结果与当前会话或轮次不匹配，请刷新。');
+      if (response.sync?.state === 'pending') {
+        if (syncWait.current?.scope !== scopeKey) syncWait.current = { scope: scopeKey, at: Date.now() };
+        setSyncStatus({ scope: scopeKey, state: Date.now() - syncWait.current.at < 15000 ? 'pending' : 'unavailable' });
+        if (!response.sync.saved) return; // Missing/uncertain evidence still waits; saved snapshots are read-only.
+      } else {
+        syncWait.current = undefined;
+        setSyncStatus({ scope: scopeKey, state: response.sync?.state ?? 'ready' });
+      }
+      if (review?.id === response.id && review.nextFileOffset == null) return;
+      let data: ReviewSummary = { ...response, files: response.files.filter(isVisibleReviewFile), nextFileOffset: response.nextFileOffset ?? null };
+      // Latest-turn list navigation never opens a diff until the user selects a file.
+      const targetId = (id: string) => data.files.some(file => file.id === id) ? id : initialFileId && data.files.some(file => file.id === initialFileId) ? initialFileId : data.nextFileOffset != null ? initialFileId ?? id : autoSelectFile || request.scope !== 'lastTurn' ? data.files[0]?.id ?? '' : '';
+      const publish = async () => {
+        if (matchingReview) {
+          // Prepare the replacement before publishing its metadata. Nothing currently visible is cleared.
+          while (active) {
+            const current = displayed.current;
+            const id = targetId(current.selected), nextFile = data.files.find(file => file.id === id);
+            const previous = current.detail?.file.id === id ? current.detail : null;
+            if (nextFile?.kind === 'text' && (!previous || current.review?.runId !== data.runId || reviewFileVersion(previous.file) !== reviewFileVersion(nextFile))) {
+              await prepareDiffDetail(transport, data.id, id, current.context, current.detailTick, previous, () => !active);
+            }
+            if (!active) return;
+            const latest = displayed.current;
+            if (latest.selected !== current.selected || latest.context !== current.context || latest.detailTick !== current.detailTick || latest.detail !== current.detail) continue;
+            if (workspaceRef.current) scrollAnchor.current = captureScrollAnchor(workspaceRef.current);
+            break;
+          }
+        }
+        if (!active) return;
+        const id = targetId(displayed.current.selected);
+        if (id !== displayed.current.selected) { setCollapsed(new Set()); setFileCollapsed(false); }
+        setReview(data); setSelected(id);
+        if (data.run) {
+          const revision = `${data.run.id}:${data.run.state}`;
+          if (historyRevision.current !== revision) {
+            historyRevision.current = revision;
+            const recorded = boot?.runs.find(run => run.id === data.runId);
+            // Refresh once per task/state transition, not once per poll/page.
+            if (boot && (!recorded || recorded.state !== data.run.state)) setBootTick(value => value + 1);
+          }
+        }
+      };
+      const streaming = !matchingReview;
+      if (streaming || data.nextFileOffset == null) await publish();
+      while (data.nextFileOffset != null && active) {
+        const offset = data.nextFileOffset;
+        const page = await transport.invoke<ReviewFilesPage>('reviewFiles', { reviewId: data.id, offset });
+        if (!active) return;
+        if (page.reviewId !== data.id || page.offset !== offset || (page.nextOffset != null && page.nextOffset <= offset)) throw new Error('无效的文件列表分页。');
+        data = { ...data, files: [...data.files, ...page.files.filter(isVisibleReviewFile)], nextFileOffset: page.nextOffset };
+        if (streaming || data.nextFileOffset == null) await publish();
+      }
+    }).catch(err => { if (active) setReviewError(errorText(err)); }).finally(() => { if (reviewPending.current === pending) reviewPending.current = undefined; if (active) setLoadingReview(false); });
+    return () => { active = false; if (reviewPending.current === pending) reviewPending.current = undefined; };
+  }, [transport, scopeKey, refreshTick, panelActive]);
+  const resetPage = () => { setCollapsed(new Set()); };
+  useEffect(() => {
+    if (!panelActive || reviewSync === 'unavailable' || (reviewSync !== 'pending' && request.scope !== 'lastTurn' && matchingReview?.run?.state !== 'running')) return;
+    const timer = setInterval(() => { if (document.visibilityState !== 'hidden' && !reviewPending.current) setRefreshTick(value => value + 1); }, 750);
+    return () => clearInterval(timer);
+  }, [panelActive, request.scope, scopeKey, matchingReview?.runId, matchingReview?.run?.state, reviewSync]);
+  const currentFile = detail?.file.id === selected ? detail.file : matchingReview?.files.find(file => file.id === selected);
+  const visibleFiles = useMemo(() => {
+    const needle = query.toLowerCase();
+    return matchingReview?.files.filter(file => `${file.path} ${file.oldPath ?? ''}`.toLowerCase().includes(needle)) ?? [];
+  }, [matchingReview?.files, query]);
+  const sessionRuns = useMemo(() => {
+    const runs = (boot?.runs ?? []).filter(run => !sessionKey || run.sessionId === sessionKey);
+    if (matchingReview?.run && (!sessionKey || matchingReview.run.sessionId === sessionKey)) return [matchingReview.run, ...runs.filter(run => run.id !== matchingReview.runId)].sort((a, b) => b.startedAt - a.startedAt);
+    return runs;
+  }, [boot?.runs, matchingReview?.run, sessionKey]);
+  const selectedRunId = request.scope === 'lastTurn' ? matchingReview?.runId ?? '' : request.runId ?? '';
+  const verifiedFiles = useMemo(() => matchingReview?.files.filter(file => file.statsKnown !== false && file.kind === 'text') ?? [], [matchingReview?.files]);
+  const unknownFiles = (matchingReview?.files.length ?? 0) - verifiedFiles.length;
+  const roots = useMemo(() => [...new Set([...(boot?.repositories.map(repo => repo.root) ?? []), ...sessionRuns.map(run => run.root), ...(request.root ? [request.root] : [])])], [boot?.repositories, sessionRuns, request.root]);
+  const perform = async (job: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true); setError(''); setStatus('');
+    try { await job(); } catch (err) { if (live.current) setError(errorText(err)); }
+    finally { if (live.current) setBusy(false); }
+  };
+  const saveSettings = (next: { layout?: 'unified' | 'split'; wordWrap?: boolean }) => {
+    if (next.layout) { settingsVersion.current.layout++; setLayout(next.layout); }
+    if (next.wordWrap != null) { settingsVersion.current.wordWrap++; setWrap(next.wordWrap); }
+    transport.invoke('settings', next).catch(err => { if (live.current) setError(errorText(err)); });
+  };
+  const navigateHunk = useCallback((direction: number) => {
+    const buttons = Array.from(diffPane.current?.querySelectorAll<HTMLButtonElement>('[data-hunk-nav]') ?? []);
+    if (!buttons.length) return;
+    const focused = buttons.findIndex(button => button === document.activeElement || button.closest('.dv-hunk')?.contains(document.activeElement));
+    const next = focused < 0 ? direction > 0 ? 0 : buttons.length - 1 : Math.max(0, Math.min(buttons.length - 1, focused + direction));
+    buttons[next].focus(); buttons[next].scrollIntoView({ block: 'nearest' });
+  }, []);
+  const confirmOperation = () => perform(async () => {
+    const target = confirmation; if (!target) return;
+    if ((target.kind === 'action' || target.kind === 'batch') && reviewSync !== 'ready') throw new Error(locale.startsWith('zh') ? '修改记录仍在同步，请完成同步后重试。' : 'Change history is still syncing; retry after synchronization.');
+    const key = scopeRef.current;
+    if (target.kind === 'action') {
+      const args: ReviewActionRequest = { reviewId: target.review.id, fileId: target.file.id, action: target.action, hunkId: target.hunk?.id, fingerprint: target.file.fingerprint, confirmed: true };
+      const result = await transport.invoke<ActionResult>('action', args);
+      if (!live.current) return;
+      setConfirmation(null);
+      if (!result.ok) { setError(`${t.actionConflict} ${result.message}`); return; }
+      showStatus(result.message || t.actionOk); if (scopeRef.current === key) setRefreshTick(value => value + 1);
+    } else if (target.kind === 'batch') {
+      const result = await transport.invoke<{ results: { path: string; ok: boolean; message: string }[] }>('batchAction', { reviewId: target.review.id, action: target.action, targets: target.files.map(file => ({ fileId: file.id, fingerprint: file.fingerprint })), confirmed: true });
+      if (!live.current) return;
+      setConfirmation(null); setBatchResults(result.results); if (scopeRef.current === key) setRefreshTick(value => value + 1);
+    } else if (target.kind === 'history') {
+      await transport.invoke('clearHistory', { confirmed: true });
+      if (!live.current) return;
+      setConfirmation(null); showStatus(t.cleared); setBootTick(value => value + 1);
+    } else if (target.kind === 'captureMaintenance') {
+      if (target.scope !== scopeRef.current || !panelActive) { setConfirmation(null); return; }
+      const value = target.inspection;
+      await transport.invoke('captureMaintenance', { action: 'retire', root: value.root, ids: value.ids, fingerprint: value.fingerprint, writersStopped: true });
+      if (!live.current) return;
+      setConfirmation(null); setLeaseInspection(null); retryReview(); showStatus('旧租约已备份并清理；已刷新审查。');
+    } else if (target.kind === 'systemOpen') {
+      setConfirmation(null);
+      if (target.scope === scopeRef.current && panelActive) await openWithDefaultApp(target.file, target.review);
+    }
+  });
+  const copyPatch = (fileId = currentFile?.id) => perform(async () => {
+    if (!matchingReview) return;
+    await transport.invoke('copyPatch', { reviewId: matchingReview.id, fileId });
+    if (live.current) showStatus(t.copied);
+  });
+  const copyPath = (file: ReviewFile) => perform(async () => {
+    if (!matchingReview) return;
+    await transport.invoke('copyPath', { reviewId: matchingReview.id, fileId: file.id });
+    if (live.current) showStatus(locale.startsWith('zh') ? '路径已复制' : 'Path copied');
+  });
+  const openFile = (file: ReviewFile) => {
+    if (expandedFiles.scope === scopeKey && expandedFiles.multiple && file.id !== selected) {
+      const ids = new Set(extraExpanded);
+      if (selected && !fileCollapsed) ids.add(selected);
+      ids.delete(file.id); setExpandedFiles({ scope: scopeKey, ids, multiple: true });
+    }
+    resetPage(); setSelected(file.id); setFileCollapsed(false);
+  };
+  const collapseFile = () => {
+    const viewport = workspaceRef.current, row = appRef.current?.querySelector<HTMLElement>('.dv-file[aria-current="true"]')?.closest<HTMLElement>('.dv-file-row');
+    if (viewport && row) fileCollapseAnchor.current = { selected, top: Math.max(0, Math.min(row.getBoundingClientRect().top - viewport.getBoundingClientRect().top, viewport.clientHeight - row.offsetHeight)) };
+    setFileCollapsed(true);
+  };
+  const fileExpanded = (file: ReviewFile) => file.id === selected ? !fileCollapsed : extraExpanded.has(file.id);
+  const anyFileExpanded = visibleFiles.some(fileExpanded);
+  const toggleAllFiles = () => {
+    if (anyFileExpanded) {
+      collapseFile(); setExpandedFiles({ scope: scopeKey, ids: new Set() });
+    } else {
+      const target = visibleFiles.some(file => file.id === selected) ? selected : visibleFiles[0]?.id;
+      if (!target) return;
+      setSelected(target); setFileCollapsed(false);
+      setExpandedFiles({ scope: scopeKey, ids: new Set(visibleFiles.filter(file => file.id !== target).map(file => file.id)), multiple: true });
+    }
+  };
+  const toggleFile = (file: ReviewFile) => {
+    if (file.id === selected) { if (fileCollapsed) setFileCollapsed(false); else collapseFile(); }
+    else if (extraExpanded.has(file.id)) setExpandedFiles({ ...expandedFiles, scope: scopeKey, ids: new Set([...extraExpanded].filter(id => id !== file.id)) });
+    else openFile(file);
+  };
+  const toggleFilesLabel = locale.startsWith('zh') ? anyFileExpanded ? '折叠全部文件' : '展开全部文件' : anyFileExpanded ? 'Collapse all files' : 'Expand all files';
+  const openWithDefaultApp = async (file: ReviewFile, targetReview = matchingReview) => {
+    if (!targetReview?.sessionId || systemOpenPending.current || !panelActive) return;
+    systemOpenPending.current = true; setOpeningSystemFile(true); setError(''); setStatus('');
+    const scope = scopeKey;
+    try {
+      await transport.invoke('openSystemFile', { reviewId: targetReview.id, fileId: file.id, sessionId: targetReview.sessionId });
+      if (live.current && scopeRef.current === scope) showStatus(locale.startsWith('zh') ? '已向系统提交打开请求' : 'Open request submitted to the system');
+    } catch (err) { if (live.current && scopeRef.current === scope) setError(errorText(err)); }
+    finally { systemOpenPending.current = false; if (live.current) setOpeningSystemFile(false); }
+  };
+  const requestSystemOpen = (file: ReviewFile) => {
+    if (!matchingReview?.sessionId || systemOpenPending.current || busy || !panelActive || confirmation) return;
+    if (requiresSystemOpenConfirmation(file.absolutePath ?? file.path)) {
+      setError(''); setConfirmation({ kind: 'systemOpen', file, review: matchingReview, scope: scopeKey });
+    } else void openWithDefaultApp(file);
+  };
+  const closeFileMenu = (event: React.MouseEvent<HTMLButtonElement>) => { const menu = event.currentTarget.closest('details'); if (menu) menu.open = false; };
+  const placeFileMenu = (menu: HTMLDetailsElement) => {
+    if (!menu.open) return;
+    const body = menu.querySelector<HTMLElement>('.dv-menu-body'), bounds = workspaceRef.current?.getBoundingClientRect();
+    if (!body || !bounds) return;
+    const row = menu.getBoundingClientRect();
+    const below = bounds.bottom - row.bottom - 5, above = row.top - bounds.top - 5;
+    const upward = body.scrollHeight > below && above > below;
+    menu.dataset.placement = upward ? 'above' : 'below';
+    body.style.maxHeight = `${Math.max(60, upward ? above : below)}px`;
+  };
+  const actionButtons = (file: ReviewFile, hunk?: DiffHunk, fileLoading = loadingDetail) => file.actions.map(action => <button key={action} disabled={busy || loadingReview || fileLoading || reviewSync !== 'ready'} onClick={() => { setError(''); if (review) { setConfirmation({ kind: 'action', action, file, hunk, review }); } }}>{t[action]}</button>);
+  const selectedIndex = visibleFiles.findIndex(file => file.id === selected);
+  const fileRow = (file: ReviewFile) => <div className="dv-file-row" key={file.id} data-expanded={fileExpanded(file)}>
+    <button className="dv-file" aria-current={file.id === selected ? 'true' : undefined} aria-expanded={fileExpanded(file)} disabled={busy} onPointerEnter={() => { if (matchingReview?.id && file.kind === 'text') prefetchDiffDetail(transport, matchingReview.id, file.id, context, detailTick); }} onClick={() => toggleFile(file)} title={`${file.oldPath ? `${file.oldPath} → ` : ''}${file.absolutePath ?? file.path} · ${t[file.status]}`}>
+      <FileIcon path={file.path} /><span className="dv-file-label"><span className="dv-file-name"><FilePath path={file.path} external={file.origin === 'external'} /></span><span className="dv-file-chevron"><ReviewIcon name="chevron" /></span></span>{file.segmentCount ? <span className="dv-counts dv-muted" title={file.note}>{locale.startsWith('zh') ? `${file.segmentCount} 段 · 净行数未知` : `${file.segmentCount} segments · net unknown`}</span> : file.statsKnown === false || file.kind !== 'text' ? <span className="dv-counts dv-muted" title={file.note} aria-label={locale.startsWith('zh') ? '行数未知' : 'Unknown totals'}>{locale.startsWith('zh') ? '行数未知' : 'Unknown'}</span> : <span className="dv-counts"><span className="dv-added">+{file.additions}</span><span className="dv-deleted">-{file.deletions}</span></span>}
+    </button>
+    <button className="dv-icon-button dv-file-open" disabled={busy || openingSystemFile || !matchingReview?.sessionId || !panelActive || !!confirmation} aria-label={`${locale.startsWith('zh') ? '打开文件' : 'Open file'} ${file.path}`} title={locale.startsWith('zh') ? '使用系统默认程序打开当前磁盘文件' : 'Open the current disk file with its default app'} onClick={() => requestSystemOpen(file)}><ReviewIcon name="open" /></button>
+    <details className="dv-menu dv-file-menu" onToggle={event => placeFileMenu(event.currentTarget)}><summary aria-label={`${t.action} ${file.path}`} title={t.action}><ReviewIcon name="more" /></summary><div className="dv-menu-body">
+      <button disabled={busy || !matchingReview} onClick={event => { closeFileMenu(event); void copyPath(file); }}>{locale.startsWith('zh') ? '复制路径' : 'Copy path'}</button>
+      <button disabled={busy} onClick={event => { closeFileMenu(event); openFile(file); }}>{locale.startsWith('zh') ? '展开文件' : 'Expand file'}</button>
+      <button disabled={busy || !matchingReview || file.kind === 'unavailable'} onClick={() => void copyPatch(file.id)}>{t.copy}</button>
+      {file.actions.length > 0 && <><hr />{actionButtons(file)}</>}
+      {file.oldPath && <p>← {file.oldPath}</p>}<p className="dv-muted">{t[file.status]} · {kindLabel(file.kind, locale)}</p>{file.note && <p className="dv-muted">{file.note}</p>}
+    </div></details>
+  </div>;
+  const otherFile = (file: ReviewFile) => <section className={extraExpanded.has(file.id) ? 'dv-file-section' : undefined} key={file.id}>
+    {fileRow(file)}
+    {extraExpanded.has(file.id) && matchingReview && <ReviewFilePreview transport={transport} review={matchingReview} file={file} context={context} reload={detailTick} identity={`${scopeKey}|${matchingReview.runId ?? ''}`} layout={layout} wrap={wrap} locale={locale} viewport={workspaceRef} actions={actionButtons} />}
+  </section>;
+  return <section ref={appRef} className="dv-app" data-base={base} lang={locale} aria-label={t.title} onKeyDown={event => { if (event.altKey && (event.key === 'ArrowDown' || event.key === 'ArrowUp') && !confirmation) { event.preventDefault(); navigateHunk(event.key === 'ArrowDown' ? 1 : -1); } }}>
+    <header className="dv-top">
+      <div className="dv-heading">
+        <div className="dv-review-pill"><ScopePicker label={t.scope} value={request.scope} disabled={!boot || busy || !panelActive} options={(initialRequest.sessionId ? ['lastTurn', 'turn'] : ['lastTurn', 'turn', 'unstaged', 'staged', 'commit', 'branch']).map(scope => ({ value: scope as Scope, label: scope === 'turn' ? locale.startsWith('zh') ? '历史轮次' : 'History' : t[scope as Scope] }))} onChange={scope => {
+          const run = matchingReview?.run ?? sessionRuns.find(item => item.root === request.root) ?? sessionRuns[0];
+          setFileCollapsed(false); setRequest(value => ({ root: value.root, scope, sessionId: initialRequest.sessionId, ...(scope === 'turn' || scope === 'lastTurn' ? { root: scope === 'lastTurn' ? latestRoot.current : run?.root ?? value.root, sessionId: initialRequest.sessionId ?? run?.sessionId, runId: scope === 'turn' ? run?.id : undefined } : {}), ref: scope === 'commit' || scope === 'branch' ? refDraft : undefined }));
+        }} />
+        {matchingReview && <span className="dv-counts" aria-label={unknownFiles ? '部分统计' : '行数统计'}>{verifiedFiles.length > 0 && <><span className="dv-added">+{verifiedFiles.reduce((sum, file) => sum + file.additions, 0)}</span><span className="dv-deleted">-{verifiedFiles.reduce((sum, file) => sum + file.deletions, 0)}</span></>}{unknownFiles > 0 && <span className="dv-muted">{verifiedFiles.length ? '部分统计' : '行数未知'}</span>}</span>}</div>
+        <div className="dv-top-actions">
+          <button className="dv-icon-button" aria-label={t.search} title={t.search} aria-pressed={searchOpen} onClick={() => setSearchOpen(value => !value)}><ReviewIcon name="search" /></button>
+          <details className="dv-menu dv-settings-menu"><summary aria-label={t.settings} title={t.settings}><ReviewIcon name="more" /></summary><div className="dv-menu-body">
+            <button disabled={busy || loadingReview || !review?.root} onClick={inspectLegacyLeases}>采集维护/旧租约</button>
+            {leaseInspection && <div className="dv-maintenance"><p>{leaseInspection.root} · {leaseInspection.count} 条旧租约</p><pre>{leaseInspection.ids.length ? leaseInspection.ids.join('\n') : '没有可清理的旧租约'}</pre>{leaseInspection.count > 0 && <button disabled={busy} onClick={retireLegacyLeases}>确认旧写入任务及后台进程已停止后清理</button>}</div>}
+            <button disabled={busy || loadingReview} onClick={() => { retrySync.current = true; syncWait.current = undefined; setBootTick(value => value + 1); }}>{t.refresh}</button>
+            <label className="dv-check"><input type="checkbox" checked={wrap} onChange={event => saveSettings({ wordWrap: event.target.checked })} />{t.wrap}</label>
+            <div className="dv-segment" role="group" aria-label={t.settings}><button aria-pressed={layout === 'unified'} onClick={() => saveSettings({ layout: 'unified' })}>{t.unified}</button><button aria-pressed={layout === 'split'} onClick={() => saveSettings({ layout: 'split' })}>{t.split}</button></div>
+            <label>{t.context}<select aria-label={t.context} value={context} disabled={busy} onChange={event => { resetPage(); setContext(Number(event.target.value)); }}><option value={1}>1</option><option value={3}>3</option><option value={20}>20</option><option value={-1}>{t.full}</option></select></label>
+            <button disabled={!detail?.hunks.length} onClick={() => setCollapsed(new Set(viewHunks.map(view => view.key)))}>{locale.startsWith('zh') ? '折叠全部差异' : 'Collapse all hunks'}</button>
+            <button disabled={!detail?.hunks.length} onClick={() => setCollapsed(new Set())}>{locale.startsWith('zh') ? '展开全部差异' : 'Expand all hunks'}</button>
+            <hr />
+            <label className="dv-repository">{t.repository}<select aria-label={t.repository} value={request.root ?? ''} disabled={!boot || busy} onChange={event => { const root = event.target.value || undefined; if (request.scope === 'lastTurn') latestRoot.current = root; setFileCollapsed(false); setRequest(value => ({ ...value, root, runId: undefined, sessionId: initialRequest.sessionId })); setQuery(''); }}><option value="" disabled={request.scope !== 'lastTurn'}>{request.scope === 'lastTurn' ? locale.startsWith('zh') ? '本会话全部项目' : 'All projects in this session' : '—'}</option>{roots.map(root => <option key={root} value={root}>{boot?.repositories.find(repo => repo.root === root)?.name ?? root}</option>)}</select></label>
+            <label>{t.language}<select aria-label={t.language} value={locale.startsWith('zh') ? 'zh-CN' : 'en'} onChange={event => setLocale(event.target.value)}><option value="zh-CN">中文</option><option value="en">English</option></select></label>
+            <div className="dv-toolbar" aria-label={t.batch}>{(['stage', 'unstage', 'revert', 'reapply'] as Action[]).map(action => { const files = visibleFiles.filter(file => file.actions.includes(action)).slice(0, 20); return files.length > 1 && <button key={action} disabled={busy || loadingReview || reviewSync !== 'ready'} onClick={() => { if (review) { setError(''); setBatchResults([]); setConfirmation({ kind: 'batch', action, files, review }); } }}>{t[action]} · {files.length}</button>; })}</div>
+            <button disabled={!boot?.runs.length || busy} onClick={() => { setError(''); setConfirmation({ kind: 'history' }); }}>{t.clearHistory}</button>
+            {review?.notice && <p className="dv-muted">{review.notice}</p>}
+            {context !== 3 && <p className="dv-muted">{t.expandedHint}</p>}
+          </div></details>
+          <button className="dv-icon-button" aria-label={toggleFilesLabel} title={toggleFilesLabel} disabled={busy || !visibleFiles.length} onClick={toggleAllFiles}><ReviewIcon name="collapse" /></button>
+          {onClose && <button className="dv-icon-button" aria-label={t.close} onClick={onClose} disabled={busy}><ReviewIcon name="close" /></button>}
+        </div>
+      </div>
+      <div className="dv-toolbar dv-repo-toolbar">
+        {request.scope === 'turn' && <label className="dv-run">{t.run} <select aria-label="对话轮次" value={selectedRunId} disabled={busy || loadingReview} onChange={event => { const run = sessionRuns.find(r => r.id === event.target.value); if (run) setRequest({ scope: 'turn', sessionId: run.sessionId, runId: run.id, root: run.root }); }}>{!selectedRunId && <option value="" disabled>{loadingReview || !boot ? '正在读取轮次…' : '暂无修改记录'}</option>}{selectedRunId && !sessionRuns.some(run => run.id === selectedRunId) && <option value={selectedRunId}>当前轮次 · {matchingReview?.files.length ?? 0} 个文件</option>}{sessionRuns.map(run => <option key={run.id} value={run.id}>{new Date(run.startedAt).toLocaleString(locale)} · {run.fileCount} 个文件 · {t[run.state]}</option>)}</select></label>}
+        {(request.scope === 'commit' || request.scope === 'branch') && <form className="dv-toolbar" onSubmit={event => { event.preventDefault(); setRequest(value => ({ ...value, ref: refDraft.trim() })); }}><label>{t.ref}<input aria-label={t.ref} value={refDraft} onChange={event => setRefDraft(event.target.value)} maxLength={250} /></label><button disabled={busy || !refDraft.trim()}>{t.applyRef}</button></form>}
+        {searchOpen && <input autoFocus type="search" aria-label={t.search} placeholder={t.search} value={query} onChange={event => setQuery(event.target.value)} />}
+      </div>
+    </header>
+    {reviewSync !== 'ready' && <div className="dv-message" role={reviewSync === 'pending' ? 'status' : 'alert'} aria-live="polite"><span>{reviewSync === 'pending' ? locale.startsWith('zh') ? '正在同步修改记录…' : 'Syncing change history…' : locale.startsWith('zh') ? '修改记录同步未完成；当前仅展示已保存记录，可重试。' : 'Change history sync is incomplete; showing saved records only. Retry to sync.'}</span>{reviewSync === 'unavailable' && <button disabled={busy || loadingReview} onClick={retryReview}>{t.retry}</button>}</div>}
+    {unknownFiles > 0 && <details className="dv-stats-note"><summary>{unknownFiles} 个文件暂无法显示行数</summary>{[...new Set(matchingReview?.files.filter(file => file.statsKnown === false || file.kind !== 'text').map(file => file.note).filter((note): note is string => !!note) ?? [])].map(note => <p key={note}>{note}</p>)}</details>}
+    {reviewError && matchingReview && <div className="dv-message dv-error" role="alert">{reviewError}<button onClick={retryReview}>{t.retry}</button></div>}
+    {error && <div className="dv-message dv-error" role="alert">{error}</div>}
+    {status && <div className="dv-toast" role="status">{status}</div>}
+    {batchResults.length > 0 && <details className="dv-message" open><summary>{t.batch}</summary><pre style={{ whiteSpace: 'pre-wrap' }}>{batchResults.map(result => `${result.ok ? '✓' : '✗'} ${result.path}: ${result.message}`).join('\n')}</pre></details>}
+    {bootError ? <div className="dv-empty dv-error" role="alert">{bootError}<button onClick={() => setBootTick(value => value + 1)}>{t.retry}</button></div> : !boot && !review ? <div className="dv-empty" role="status">{t.loading}</div> : <div className="dv-workspace" ref={workspaceRef}>
+      <nav className="dv-file-list" aria-label={t.files}>{(selectedIndex < 0 ? visibleFiles : visibleFiles.slice(0, selectedIndex)).map(otherFile)}</nav>
+      {!visibleFiles.length && !loadingReview && !reviewError && !bootError && reviewSync === 'ready' && <p className="dv-rail-empty">{query ? t.noMatches : matchingReview?.run?.state === 'running' ? locale.startsWith('zh') ? '本轮正在运行，尚未记录文件修改。' : 'This turn is running; no file changes recorded yet.' : t.noFiles}{query && <button onClick={() => setQuery('')}>{t.clearSearch}</button>}</p>}
+      <section className="dv-file-section">
+      {selectedIndex >= 0 && fileRow(visibleFiles[selectedIndex])}
+      <main className="dv-review" hidden={fileCollapsed || (!review && reviewSync !== 'ready') || Boolean(query && selectedIndex < 0) || (!currentFile && review?.nextFileOffset == null && !loadingReview && !reviewError && !bootError && Boolean(review))} aria-busy={loadingReview || loadingDetail || reviewSync === 'pending'}>
+        {loadingReview && !matchingReview ? <div className="dv-empty" role="status">{t.loading}</div> : reviewError && !matchingReview ? <div className="dv-empty dv-error" role="alert">{reviewError}<button onClick={retryReview}>{t.retry}</button></div> : !review ? <div className="dv-empty">{t.noRoots}</div> : !currentFile ? review.files.length || review.nextFileOffset != null ? <div className="dv-empty">{review.nextFileOffset != null ? t.loading : t.chooseFile}</div> : null : <>
+          <h2 className="dv-sr-only">{currentFile.path}</h2>
+          <div className={`dv-diff-pane ${wrap ? 'dv-wrap' : 'dv-nowrap'}`} ref={diffPane} tabIndex={0} aria-label={`${currentFile.path} ${t.title}`}>
+            {loadingDetail && !detail ? <div className="dv-empty" role="status">{t.loading}</div> : detailError && !detail ? <div className="dv-empty dv-error" role="alert">{detailError}<button onClick={() => setDetailTick(value => value + 1)}>{t.retry}</button></div> : currentFile.kind !== 'text' && !currentFile.segmentCount ? <div className="dv-empty">{t[currentFile.kind]}</div> : detail && !detail.hunks.length ? <div className="dv-empty">{currentFile.status === 'mode' ? t.mode : t.noHunks}</div> : viewHunks.map(({ key, hunk }) => <section className="dv-hunk" key={key}>
+              <div className="dv-hunk-heading"><button data-hunk-nav aria-expanded={!collapsed.has(key)} onClick={() => setCollapsed(value => { const next = new Set(value); next.has(key) ? next.delete(key) : next.add(key); return next; })} aria-label={`${collapsed.has(key) ? t.collapsed : t.expanded} ${hunk.header}`}><span aria-hidden="true">{collapsed.has(key) ? '▸' : '▾'}</span> <code>{hunk.header}</code></button><div className="dv-toolbar">{context === 3 && !currentFile.oldPath && review.scope !== 'turn' && review.scope !== 'lastTurn' && actionButtons(currentFile, hunk)}</div></div>
+              {!collapsed.has(key) && <DiffRows path={currentFile.path} lines={hunk.lines} layout={layout} t={t} />}
+            </section>)}
+          </div>
+          {detail?.nextOffset != null && <div className="dv-continuation" ref={continuationRef} aria-label={t.loadMore}>{loadingMore && <span role="status">{t.loading}</span>}{detailError && <span className="dv-error" role="alert">{detailError}<button onClick={loadMore}>{t.retry}</button></span>}</div>}
+        </>}
+      </main>
+      </section>
+      {selectedIndex >= 0 && <nav className="dv-file-list" aria-label={t.files}>{visibleFiles.slice(selectedIndex + 1).map(otherFile)}</nav>}
+    </div>}
+    {confirmation && <Modal title={confirmation.kind === 'captureMaintenance' ? '确认清理旧采集租约' : confirmation.kind === 'systemOpen' ? locale.startsWith('zh') ? '确认外部打开' : 'Confirm system open' : confirmation.kind === 'action' || confirmation.kind === 'batch' ? `${t.confirm}: ${t[confirmation.action]}` : t.clearHistory} busy={busy || openingSystemFile} onClose={() => setConfirmation(null)}>
+      <p>{confirmation.kind === 'captureMaintenance' ? '请确认此项目相关旧写入任务及后台进程均已停止。将备份并清理所列旧租约，仅修复后续捕获，不保证旧历史恢复；不会清理其他项目或现代租约。' : confirmation.kind === 'systemOpen' ? locale.startsWith('zh') ? '此文件类型可能执行程序或脚本。确认使用系统默认程序打开当前磁盘文件？' : 'This file type may execute a program or script. Open the current disk file with its default app?' : confirmation.kind === 'batch' ? t.batchHint : confirmation.kind === 'action' ? t.confirmHint : t.clearHint}</p>
+      {confirmation.kind === 'systemOpen' && <p>{confirmation.file.absolutePath ?? `${confirmation.review.root}/${confirmation.file.path}`}</p>}
+      {confirmation.kind === 'captureMaintenance' && <div className="dv-maintenance"><p>{confirmation.inspection.root} · {confirmation.inspection.count} 条旧租约</p><pre>{confirmation.inspection.ids.join('\n')}</pre></div>}
+      {confirmation.kind === 'batch' && <><p>{confirmation.review.root} · {t[confirmation.review.scope]}</p><pre style={{ whiteSpace: 'pre-wrap' }}>{confirmation.files.map(file => file.path).join('\n')}</pre></>}
+      {confirmation.kind === 'action' ? <dl className="dv-target"><dt>{t.repository}</dt><dd>{confirmation.review.root}</dd><dt>{t.scope}</dt><dd>{t[confirmation.review.scope]}</dd><dt>{t.target}</dt><dd>{confirmation.file.path}{confirmation.file.oldPath && <> ← {confirmation.file.oldPath}</>}</dd><dt>{t.action}</dt><dd>{t[confirmation.action]} · {confirmation.hunk ? `${t.hunk} ${confirmation.hunk.header}` : t.wholeFile}</dd></dl> : confirmation.kind === 'history' ? <p>{t.history}: {boot?.runs.length ?? 0}</p> : null}
+      {error && <p className="dv-error" role="alert">{error}</p>}<div className="dv-dialog-actions"><button disabled={busy} onClick={() => setConfirmation(null)} autoFocus>{t.cancel}</button><button className="dv-primary" disabled={busy || ((confirmation.kind === 'action' || confirmation.kind === 'batch') && reviewSync !== 'ready')} onClick={confirmOperation}>{busy ? t.loading : t.confirm}</button></div>
+    </Modal>}
+  </section>;
+}
+export default ReviewApp;

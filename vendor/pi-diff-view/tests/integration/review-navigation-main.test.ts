@@ -1,0 +1,99 @@
+import { it, expect, vi } from 'vitest';
+import { build } from 'esbuild';
+import { createRequire } from 'node:module';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { SnapshotStore } from '../../src/core/storage';
+import { canonical, digest, snapshotOfText } from '../../src/core/path-policy';
+import type { CaptureRun, ReviewSummary } from '../../src/core/contracts';
+it('built main validates session-scoped navigation and restores selection after reload', async () => {
+  const directory = await fs.mkdtemp(path.join(process.env.PI_SCRATCH_DIR ?? os.tmpdir(), 'review-nav-'));
+  const data = path.join(directory, 'data'), root = path.join(directory, 'project'), entry = path.join(directory, 'main.cjs');
+  await fs.mkdir(root); const store = new SnapshotStore(data); await store.init();
+  const run: CaptureRun = { version: 1, id: 'test-nav-run', generation: 'old-generation', sessionId: 's', root, startedAt: Date.now(), endedAt: Date.now(), state: 'completed', incomplete: false, fileCount: 121, changes: {}, replies: [], bindings: {} };
+  for (let i = 0; i < 121; i++) run.changes[`file-${i}.txt`] = { before: snapshotOfText('old\n'), after: snapshotOfText('new\n') };
+  await store.writeRun(run);
+  await build({ entryPoints: ['src/main.ts'], outfile: entry, platform: 'node', format: 'cjs', bundle: true, external: ['original-fs'] });
+  const home = vi.spyOn(os, 'homedir').mockReturnValue(directory), oldPi = (globalThis as any).pi;
+  (globalThis as any).pi = { plugin: { getDataPath: async () => data, getSettings: async () => ({}) }, workspace: { get: async () => ({ path: root }) }, app: { getAppearance: async () => ({}) }, commands: { register: async () => {}, unregister: async () => {} }, events: { on() {}, off() {} } };
+  const plugin = createRequire(import.meta.url)(entry); let loaded = false;
+  try {
+    await plugin.onLoad(); loaded = true;
+    await plugin.onRendererCall('activeReviewSession', { sessionId: 's' });
+    const summary = await plugin.onRendererCall('turnSummary', { sessionId: 's', runId: run.id, offset: 120, limit: 1 });
+    const fileId = summary.files[0].id;
+    const job = await plugin.onRendererCall('jobStart', { method: 'selectTurn', args: { sessionId: 's', runId: run.id, fileId } });
+    let result: any;
+    for (let i = 0; i < 100; i++) { result = await plugin.onRendererCall('jobPoll', job); if (result.state !== 'pending') break; await new Promise(resolve => setTimeout(resolve, 20)); }
+    expect(result.state).toBe('done');
+    const selection = await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: result.result.nonce, sessionId: 's' });
+    expect(selection.fileId).toBe(fileId);
+    await plugin.onRendererCall('reviewSurface', { role: 'renderer', id: 'renderer', seq: 1, sessionId: 's' });
+    await expect(plugin.onRendererCall('reviewSurface', { role: 'renderer', id: 'renderer', seq: 2, sessionId: 's', nonce: selection.nonce, selectionRevision: selection.revision + 1 })).rejects.toThrow('Selection changed');
+    await plugin.onRendererCall('reviewSurface', { role: 'renderer', id: 'renderer', seq: 3, sessionId: 's', nonce: selection.nonce, selectionRevision: selection.revision });
+    const surface = await plugin.onPanelInvoke('diff.reviewSurface', { role: 'view', id: 'view', seq: 1 });
+    expect(surface).toMatchObject({ sessionId: 's', nonce: selection.nonce, selectionRevision: selection.revision });
+    await plugin.onPanelInvoke('diff.reviewSurface', { role: 'view', id: 'view', seq: 2, ack: surface.key });
+    expect(await plugin.onRendererCall('reviewSurface', { role: 'renderer', id: 'renderer', seq: 4, sessionId: 's' })).toMatchObject({ confirmed: true });
+    expect(await plugin.onPanelInvoke('diff.reviewSurface', { role: 'view', id: 'second-view', seq: 1 })).toMatchObject({ state: 'ambiguous', sessionId: null });
+    const review: ReviewSummary = await plugin.onPanelInvoke('diff.review', { ...selection.request, focusFileId: selection.fileId });
+    expect(review.files.length).toBeGreaterThan(0); expect(review.files.length).toBeLessThanOrEqual(100); expect(review.files[0].path).toBe('file-0.txt');
+    const continuation = await plugin.onPanelInvoke('diff.reviewFiles', { reviewId: review.id, offset: review.nextFileOffset });
+    expect(continuation.files.at(-1).path).toBe('file-120.txt'); expect(continuation.nextOffset).toBeNull();
+    const detail = await plugin.onPanelInvoke('diff.file', { reviewId: review.id, fileId }); expect(detail.file.path).toBe('file-120.txt');
+    expect(detail.hunks[0].lines.some((line: any) => line.text === 'new')).toBe(true);
+    const originalWorkspace = (globalThis as any).pi.workspace.get;
+    let releaseHistory!: () => void;
+    (globalThis as any).pi.workspace.get = () => new Promise(resolve => { releaseHistory = () => resolve({ path: root }); });
+    const blockedHistory = plugin.onPanelInvoke('diff.bootstrap', {});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    try {
+      // Selection must not queue behind bootstrap or mutate its authorization.
+      const quick = await plugin.onRendererCall('jobStart', { method: 'selectTurn', args: { sessionId: 's', runId: run.id, fileId }, waitMs: 40 });
+      let quickResult = quick;
+      for (let i = 0; quickResult.state !== 'done' && i < 50; i++) { quickResult = await plugin.onRendererCall('jobPoll', quick); if (quickResult.state === 'error') break; await new Promise(resolve => setTimeout(resolve, 10)); }
+      expect(quickResult.state).toBe('done');
+      expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: quickResult.result.nonce, sessionId: 's' })).fileId).toBe(fileId);
+    } finally { (globalThis as any).pi.workspace.get = originalWorkspace; releaseHistory(); await blockedHistory; }
+    await expect(plugin.onPanelInvoke('diff.openFile', { reviewId: review.id, fileId, sessionId: 's' })).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
+    await expect(plugin.onRendererCall('openFile', { listen: true, sessionId: 's', listenerId: 'retired' })).rejects.toMatchObject({ code: 'UNKNOWN_METHOD' });
+    await expect(plugin.onRendererCall('selectTurn', { sessionId: 's', runId: run.id, fileId: 'missing' })).rejects.toThrow('no longer');
+    await expect(plugin.onRendererCall('selectTurn', { sessionId: 'other', runId: run.id })).rejects.toThrow('not found');
+    await plugin.onRendererCall('activeReviewSession', { sessionId: 'other' });
+    await expect(plugin.onPanelInvoke('diff.readTurnSelection', { nonce: selection.nonce })).rejects.toThrow('会话标识');
+    await expect(plugin.onPanelInvoke('diff.readTurnSelection', { nonce: selection.nonce, sessionId: 'other' })).rejects.toThrow('不存在');
+    expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: selection.nonce, sessionId: 's' })).request.runId).toBe(run.id);
+    await plugin.onUnload(); loaded = false;
+    await expect(plugin.onRendererCall('readTurnSelection', { nonce: selection.nonce })).rejects.toThrow('not loaded');
+    await plugin.onLoad(); loaded = true;
+    expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: selection.nonce, sessionId: 's' })).fileId).toBe(fileId);
+    expect((await plugin.onRendererCall('bootstrap', {})).runs).toEqual([]);
+    const since = Date.now() - 1000;
+    const liveRun: CaptureRun = { ...run, version: 2, boundary: 'user', source: 'host-history', id: 'live-nav-run', userMessageId: 'current-user', startedAt: since + 1, state: 'running', endedAt: undefined };
+    liveRun.changes = Object.fromEntries(Object.entries(run.changes).map(([value, change]) => {
+      const absolutePath = path.join(root, value), identity = canonical(absolutePath);
+      return [value, { ...change, capture: { id: digest(identity).slice(0, 24), identity, absolutePath, path: value, origin: 'workspace' as const } }];
+    }));
+    await store.writeRun(liveRun);
+    expect(await store.getRun(liveRun.id, false, false)).toMatchObject({ id: liveRun.id, state: 'running', boundary: 'user', userMessageId: 'current-user', source: 'host-history', bindings: {} });
+    const latestArgs = { scope: 'lastTurn', sessionId: 's' };
+    const latest = await plugin.onRendererCall('selectTurn', latestArgs);
+    expect(latest.request).toEqual({ scope: 'lastTurn', sessionId: 's' }); expect(latest.fileId).toBeUndefined();
+    expect(latest.nonce).toBe(selection.nonce); expect(latest.revision).toBeGreaterThan(selection.revision);
+    expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: latest.nonce, sessionId: 's' })).request).toEqual(latest.request);
+    await expect(plugin.onPanelInvoke('diff.readTurnSelection', { nonce: latest.nonce, sessionId: 'other' })).rejects.toThrow('不存在');
+    await expect(plugin.onRendererCall('selectTurn', { ...latestArgs, sessionId: '../invalid' })).rejects.toThrow('requires a session');
+    await expect(plugin.onRendererCall('selectTurn', { ...latestArgs, fileId })).rejects.toThrow('fixed file');
+    liveRun.state = 'completed'; liveRun.endedAt = Date.now(); await store.writeRun(liveRun);
+    expect((await plugin.onRendererCall('selectTurn', latestArgs)).request).toEqual(latest.request);
+    const empty = await plugin.onRendererCall('selectTurn', { scope: 'lastTurn', sessionId: 'empty-session' });
+    expect(empty.request).toEqual({ scope: 'lastTurn', sessionId: 'empty-session' });
+    expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: empty.nonce, sessionId: 'empty-session' })).fileId).toBeUndefined();
+    // A saved latest-mode entry still resolves after the task ends or plugin reloads.
+    await plugin.onUnload(); loaded = false; await plugin.onLoad(); loaded = true;
+    expect((await plugin.onPanelInvoke('diff.readTurnSelection', { nonce: latest.nonce, sessionId: 's' })).request).toEqual(latest.request);
+    const historical = await plugin.onRendererCall('selectTurn', { sessionId: 's', runId: run.id, fileId });
+    expect(historical.request.scope).toBe('turn'); expect(historical.fileId).toBe(fileId);
+  } finally { if (loaded) await plugin.onUnload(); home.mockRestore(); (globalThis as any).pi = oldPi; await fs.rm(directory, { recursive: true, force: true }); }
+});

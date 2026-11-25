@@ -1,0 +1,88 @@
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { UiTransport } from '../core/contracts';
+import type { PluginReviewAdapter } from './plugin-review-adapter';
+import { createRunningChangesController, type RunningView } from './running-changes';
+import type { RendererLayer, RendererUi } from './host-contract';
+import { openFloatingLayer } from './floating-layer';
+const anchors = new Set<HTMLElement>();
+interface Position { left: number; top: number; width: number; visible: boolean }
+const hidden: Position = { left: 0, top: 0, width: 0, visible: false };
+export default function RunningChangePill({ transport, adapter, ui, report }: { transport: UiTransport; adapter: PluginReviewAdapter; ui: RendererUi; report(stage: string): void }) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const controller = useRef<ReturnType<typeof createRunningChangesController>>();
+  const [view, setView] = useState<RunningView>({ summary: null, busy: false, error: '' });
+  const [position, setPosition] = useState<Position>(hidden);
+  const [layer, setLayer] = useState<RendererLayer | null>(null);
+  const [layerError, setLayerError] = useState('');
+  useEffect(() => {
+    let live = true, unsubscribe: (() => void) | undefined, retry: ReturnType<typeof setTimeout> | undefined;
+    const current = createRunningChangesController(transport, adapter, next => { if (live) setView(next); }, report); controller.current = current;
+    report('composer-mounted');
+    const subscribe = () => void adapter.subscribeActivity(activity => { if (live) current.setActivity(activity); }, report).then(dispose => { if (live) unsubscribe = dispose; else dispose(); }).catch(() => {
+      if (live) { current.setActivity(null); report('composer-source-error'); retry = setTimeout(subscribe, 2000); }
+    });
+    subscribe();
+    return () => { live = false; if (retry) clearTimeout(retry); current.dispose(); unsubscribe?.(); controller.current = undefined; };
+  }, [transport, adapter, report]);
+  useLayoutEffect(() => {
+    const owner = anchor.current;
+    if (!view.summary || !owner) { setPosition(hidden); return; }
+    anchors.add(owner);
+    let frame = 0, lastStage = '';
+    const rectOf = (node: HTMLElement) => {
+      const shell = node.closest<HTMLElement>('.composer-shell'), rect = shell?.getBoundingClientRect();
+      return shell?.isConnected && shell.getClientRects().length && rect && rect.width > 80 && rect.top > 48 && rect.top < window.innerHeight && rect.right > 0 && rect.left < window.innerWidth ? rect : null;
+    };
+    const update = () => {
+      // Only the public slot's owning composer is measured. No host DOM is reparented or edited.
+      const shell = owner.closest<HTMLElement>('.composer-shell'), rect = rectOf(owner);
+      const first = [...anchors].find(node => rectOf(node));
+      const visible = Boolean(rect && first === owner);
+      const stack = shell?.closest<HTMLElement>('.composer-stack');
+      // Measure only this composer's visible task dock, never another session's dock.
+      const dock = stack?.querySelector<HTMLElement>('.todo-dock');
+      const dockRect = dock?.getBoundingClientRect();
+      const dockStyle = dock && getComputedStyle(dock);
+      const dockVisible = dock && dock.getClientRects().length > 0 && dockRect && dockRect.height > 0 && dockRect.width > 0 && dockStyle?.visibility !== 'hidden' && dockStyle?.display !== 'none' && dockStyle?.opacity !== '0' && rect && dockRect.right > rect.left && dockRect.left < rect.right && dockRect.top < rect.top && dockRect.bottom > 0;
+      const ceiling = dockVisible ? Math.min(rect!.top, dockRect!.top) : rect?.top ?? 0;
+      const stage = !shell ? 'composer-anchor-missing' : !rect ? 'composer-anchor-offscreen' : 'composer-positioned';
+      if (stage !== lastStage) { lastStage = stage; report(stage); }
+      const next = visible && rect && ceiling > 48 ? { left: rect.left + rect.width / 2, top: ceiling - 8, width: Math.min(rect.width - 16, window.innerWidth - 24), visible } : hidden;
+      setPosition(previous => previous.visible === next.visible && previous.left === next.left && previous.top === next.top && previous.width === next.width ? previous : next);
+      frame = requestAnimationFrame(update);
+    };
+    update(); return () => { cancelAnimationFrame(frame); anchors.delete(owner); };
+  }, [view.summary?.runId, report]);
+  const visible = !!view.summary && position.visible;
+  useLayoutEffect(() => {
+    setLayer(null); setLayerError('');
+    if (!visible) return;
+    let current: RendererLayer;
+    try { current = openFloatingLayer(ui, document); }
+    catch (error) {
+      setLayerError(error instanceof Error ? error.message : String(error));
+      report('composer-layer-error');
+      return;
+    }
+    setLayer(current);
+    return () => current.close();
+  }, [visible, ui, report]);
+  const summary = view.summary, zh = summary?.locale.startsWith('zh');
+  const unknown = summary?.unknownFileCount ?? 0, allUnknown = !!summary && unknown >= summary.fileCount;
+  return <><span ref={anchor} className="dv-running-anchor" aria-hidden="true" />{layerError && <span className="dv-running-error" role="alert">{layerError}</span>}{summary && visible && layer && createPortal(<div className="dv-running-float" data-base={summary.base} style={{ left: position.left, top: position.top, maxWidth: position.width }}>
+    <button type="button" className="dv-running-pill" disabled={view.busy} aria-busy={view.busy} title={zh ? '查看本会话最近轮次的变更；仅统计可验证文本' : 'Review the latest turn in this session; verified text counts only'} onClick={() => void controller.current?.open()}>
+      <span className="dv-running-label">{zh ? `${summary.fileCount} 个文件已更改` : `${summary.fileCount} ${summary.fileCount === 1 ? 'file' : 'files'} changed`}</span>{!allUnknown && <><span className="dv-running-add">+{summary.additions}</span><span className="dv-running-del">-{summary.deletions}</span></>}{unknown > 0 && <span className="dv-running-unknown">{zh ? allUnknown ? '行数未知' : '部分统计' : allUnknown ? 'Unknown lines' : 'Partial totals'}</span>}
+    </button>{view.error && <p className="dv-running-error" role="alert">{view.error}</p>}
+  </div>, layer.element)}</>;
+}
+export const runningPillStyle = `
+.dv-running-anchor{display:none!important}
+.dv-running-float{position:fixed;z-index:20;transform:translate(-50%,-100%);font:13px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;--rp-add:var(--ds-success,#008339);--rp-del:var(--ds-error,#c52b2b);--rp-bg:var(--ds-bg-elevated-opaque,#fafafa);--rp-ink:var(--ds-text-muted,var(--ds-text-secondary,#686b6e));--rp-border:var(--ds-border-default,var(--ds-border-subtle,#e6e6e6))}
+.dv-running-float[data-base=dark]{--rp-add:var(--ds-success,#40c977);--rp-del:var(--ds-error,#ff6764);--rp-bg:var(--ds-bg-elevated-opaque,#212121);--rp-ink:var(--ds-text-muted,var(--ds-text-secondary,#b5b5b5));--rp-border:var(--ds-border-default,var(--ds-border-subtle,#3a3a3a))}
+.dv-running-pill{box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:4px;max-width:100%;min-height:34px;padding:7px 12px;border:1px solid var(--rp-border);border-radius:var(--dv-radius-pill,20px);background:var(--rp-bg);color:var(--rp-ink);font:inherit;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums;box-shadow:var(--dv-popup-shadow,0 2px 8px rgb(0 0 0 / .06))}
+.dv-running-label{overflow:hidden;text-overflow:ellipsis;min-width:0}.dv-running-add,.dv-running-del,.dv-running-unknown{flex:none;font-size:12px}.dv-running-add{color:var(--rp-add)}.dv-running-del{color:var(--rp-del)}
+.dv-running-pill:hover:not(:disabled){background:var(--ds-bg-hover,color-mix(in srgb,var(--rp-ink) 7%,var(--rp-bg)))}.dv-running-pill:focus-visible{outline:2px solid var(--ds-focus,var(--rp-ink));outline-offset:2px}.dv-running-pill:disabled{cursor:wait;opacity:.5}
+.dv-running-error{margin:6px 0 0;padding:10px 12px;border:1px solid var(--rp-border,var(--ds-border-default,#e6e6e6));border-left:3px solid var(--rp-del,var(--ds-error,#c52b2b));border-radius:var(--dv-radius-surface,12px);background:var(--rp-bg,var(--ds-bg-elevated-opaque,#fafafa));color:var(--rp-del,var(--ds-error,#c52b2b));font-size:12px;line-height:1.6;overflow-wrap:anywhere;white-space:normal}
+@media(max-width:420px){.dv-running-pill{font-size:13px;padding:7px 10px}}
+`;

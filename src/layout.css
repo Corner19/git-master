@@ -353,3 +353,186 @@
     max-height: 35%;
   }
 }
+
+/* ---- daily report (日报) ---- */
+
+.report-side {
+  flex: 0 0 auto;
+  width: 220px;
+  min-width: 150px;
+  max-width: 40%;
+  border-right: 1px solid var(--border-soft);
+}
+
+.report-list,
+.report-detail {
+  padding: 4px 0;
+}
+
+.report-row .report-count {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.report-head {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 12px;
+}
+
+.report-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.report-warning {
+  margin: 8px 12px 0;
+  padding: 6px 8px;
+  border-left: 3px solid var(--status-conflict, #d9822b);
+  background: var(--chrome-bg);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.report-summary {
+  margin: 10px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  background: var(--chrome-bg);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.report-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.report-commits .pane-header,
+.report-repos-list .pane-header {
+  margin-top: 6px;
+}
+
+.report-commit,
+.report-repo {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 12px;
+  font-size: 12px;
+}
+
+.report-commit:hover,
+.report-repo:hover {
+  background: var(--row-hover, rgba(128, 128, 128, 0.08));
+}
+
+.report-hash {
+  flex: 0 0 auto;
+  color: var(--fg-secondary);
+}
+
+.report-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-repos,
+.report-remote {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.report-repo .report-remote {
+  flex: 1 1 auto;
+}
+
+.report-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+}
+
+.report-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+  font-size: 12px;
+}
+
+.report-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.report-field.column {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.report-field input[type="text"] {
+  width: 80px;
+}
+
+.report-field select,
+.report-field textarea {
+  width: 100%;
+  max-width: 340px;
+}
+
+.report-field textarea {
+  min-height: 62px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  color: var(--fg-primary, inherit);
+  background: var(--panel-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+}
+
+.report-hint {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.report-repo-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.report-repo-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.report-repo-option:hover {
+  background: var(--row-hover, rgba(128, 128, 128, 0.08));
+}

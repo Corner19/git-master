@@ -13,12 +13,13 @@ const commitSurface = surface();
 const prefs = new Map([["pig.commit_split_ratio", "65"]]);
 const context = vm.createContext({
   mode: "split", commitSurface, splitter: surface(), logSurface: surface(),
-  consoleSurface: surface(), commitView: {}, logView: {}, consoleView: {},
+  consoleSurface: surface(), reportSurface: surface(),
+  commitView: {}, logView: {}, consoleView: {}, reportView: {},
   localStorage: { getItem: (key) => prefs.get(key), setItem: (key, value) => prefs.set(key, value) },
   paintTabs() {},
 });
 vm.runInContext(source.slice(start, end), context);
-for (const mode of ["split", "commit", "log", "commit", "split", "console", "commit"]) {
+for (const mode of ["split", "commit", "log", "commit", "split", "console", "report", "commit"]) {
   vm.runInContext(`applyMode(${JSON.stringify(mode)})`, context);
   if (mode === "commit") {
     assert.equal(commitSurface.style.height, "100%", "commit fills the available height");
